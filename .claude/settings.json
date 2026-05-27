@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -NonInteractive -File \"c:\\Users\\charl\\OneDrive\\Documents\\OS System\\.claude\\hooks\\create-session-log.ps1\""
+          }
+        ]
+      }
+    ]
+  }
+}

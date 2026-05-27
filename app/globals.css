@@ -1,26 +1,119 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-ink-0: oklch(0.08 0 0);
+  --color-ink-1: oklch(0.12 0 0);
+  --color-ink-2: oklch(0.18 0 0);
+  --color-ink-3: oklch(0.28 0 0);
+  --color-ink-4: oklch(0.45 0 0);
+  --color-ink-5: oklch(0.65 0 0);
+  --color-ink-6: oklch(0.85 0 0);
+  --color-ink-7: oklch(0.96 0 0);
+
+  --color-accent: oklch(0.72 0.18 145);
+  --color-accent-dim: oklch(0.55 0.14 145);
+  --color-accent-glow: oklch(0.72 0.18 145 / 0.15);
+
+  --color-ok: oklch(0.72 0.18 145);
+  --color-warn: oklch(0.82 0.16 85);
+  --color-danger: oklch(0.65 0.22 25);
+  --color-hot: oklch(0.65 0.22 25);
+  --color-warm: oklch(0.78 0.16 90);
+  --color-cool: oklch(0.60 0.10 230);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  --background: oklch(0.08 0 0);
+  --foreground: oklch(0.96 0 0);
+  --card-bg: oklch(0.10 0 0 / 0.8);
+  --card-border: oklch(1 0 0 / 0.06);
+  --card-border-hover: oklch(1 0 0 / 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), system-ui, sans-serif;
+  min-height: 100vh;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: oklch(1 0 0 / 0.1); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: oklch(1 0 0 / 0.2); }
+
+/* Card base */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Monospace numbers */
+.mono { font-family: var(--font-mono), monospace; }
+
+/* Card header label */
+.card-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: oklch(0.65 0 0);
+}
+
+/* Temperature badges */
+.badge-hot {
+  background: oklch(0.65 0.22 25 / 0.15);
+  color: oklch(0.75 0.18 25);
+  border: 1px solid oklch(0.65 0.22 25 / 0.3);
+}
+.badge-warm {
+  background: oklch(0.78 0.16 90 / 0.12);
+  color: oklch(0.82 0.14 90);
+  border: 1px solid oklch(0.78 0.16 90 / 0.25);
+}
+.badge-cool {
+  background: oklch(0.60 0.10 230 / 0.12);
+  color: oklch(0.70 0.08 230);
+  border: 1px solid oklch(0.60 0.10 230 / 0.25);
+}
+
+/* Online dot pulse */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.online-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* Ticker scroll animation */
+@keyframes ticker {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* Recipe analyze scanning animation */
+@keyframes scanning {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+.animate-scanning {
+  animation: scanning 1.2s ease-in-out infinite;
+  width: 25%;
 }
