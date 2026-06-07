@@ -1,7 +1,7 @@
 {
   "crons": [
     {
-      "path": "/api/finance/snapshot",
+      "path": "/api/finance",
       "schedule": "0 5 * * *"
     }
   ]

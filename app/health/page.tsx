@@ -1,12 +1,23 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import Shell from '@/components/dashboard/Shell'
 import { config } from '@/lib/config'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface WorkoutEntry { date: string; workout_type: string | null }
+
+interface Exercise {
+  id?: string
+  section: string | null
+  name: string
+  raw: string | null
+  sets: number | null
+  reps: string | null
+  note: string | null
+  done: boolean
+}
 
 interface AnalysisResult {
   dish_name: string
@@ -103,10 +114,13 @@ function WorkoutLogModule() {
   const today = localDateKey()
 
   const [workoutMap, setWorkoutMap] = useState<Map<string, string | null>>(new Map())
-  const [editingDate, setEditingDate] = useState<string | null>(null)
-  const [draft, setDraft] = useState('')
-  const [showSuggestions, setShowSuggestions] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const [selected, setSelected] = useState<string>(today)
+  const [title, setTitle] = useState('')
+  const [exercises, setExercises] = useState<Exercise[]>([])
+  const [titleDraft, setTitleDraft] = useState('')
+  const [editingTitle, setEditingTitle] = useState(false)
+  const [addDraft, setAddDraft] = useState('')
+  const [loadingDetail, setLoadingDetail] = useState(false)
 
   useEffect(() => {
     fetch('/api/workouts?days=10')
@@ -119,40 +133,73 @@ function WorkoutLogModule() {
       .catch(() => {})
   }, [])
 
-  function startEdit(date: string) {
-    const current = workoutMap.get(date)
-    setDraft(current ?? '')
-    setEditingDate(date)
-    setShowSuggestions(true)
-    setTimeout(() => inputRef.current?.focus(), 0)
-  }
+  // Load the selected day's detail (title + exercises).
+  useEffect(() => {
+    let cancelled = false
+    setLoadingDetail(true)
+    fetch(`/api/workouts?date=${selected}`)
+      .then(r => r.ok ? r.json() : { title: null, exercises: [] })
+      .then((d: { title: string | null; exercises: Exercise[] }) => {
+        if (cancelled) return
+        setTitle(d.title ?? '')
+        setExercises(d.exercises ?? [])
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoadingDetail(false) })
+    return () => { cancelled = true }
+  }, [selected])
 
-  async function commit(date: string, value: string) {
-    const type = value.trim().toUpperCase() || null
-    setWorkoutMap(prev => new Map(prev).set(date, type))
-    setEditingDate(null)
-    setShowSuggestions(false)
+  const streak = calcStreak(days, workoutMap)
+  const filtered = CANONICAL_TYPES.filter(t => titleDraft === '' || t.includes(titleDraft.toUpperCase()))
+
+  async function saveTitle(value: string) {
+    const t = value.trim() || null
+    setTitle(t ?? '')
+    setEditingTitle(false)
+    setWorkoutMap(prev => new Map(prev).set(selected, t))
     await fetch('/api/workouts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date, workout_type: type }),
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date: selected, workout_type: t }),
     })
   }
 
-  function cancel() {
-    setEditingDate(null)
-    setShowSuggestions(false)
+  async function persist(next: Exercise[]) {
+    setExercises(next)
+    await fetch('/api/workouts', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date: selected, title: title || null, exercises: next }),
+    })
   }
 
-  const streak = calcStreak(days, workoutMap)
-  const filtered = CANONICAL_TYPES.filter(t =>
-    draft === '' || t.includes(draft.toUpperCase())
-  )
+  function addExercise() {
+    const text = addDraft.trim()
+    if (!text) return
+    const parts = text.split(/\s+/)
+    const lastTok = parts[parts.length - 1]
+    let name = text
+    let raw: string | null = null
+    if (parts.length > 1 && /\d/.test(lastTok) && /[x×]/i.test(lastTok)) {
+      raw = lastTok
+      name = parts.slice(0, -1).join(' ')
+    }
+    persist([...exercises, { section: null, name, raw, sets: null, reps: null, note: null, done: true }])
+    setAddDraft('')
+  }
+
+  // Group by section, preserving order.
+  const groups: { section: string | null; items: { ex: Exercise; idx: number }[] }[] = []
+  exercises.forEach((ex, idx) => {
+    let g = groups.find(x => x.section === (ex.section ?? null))
+    if (!g) { g = { section: ex.section ?? null, items: [] }; groups.push(g) }
+    g.items.push({ ex, idx })
+  })
+
+  const selLabel = fmtDayLabel(selected)
 
   return (
     <div className="card rounded-sm flex flex-col flex-1 min-h-0">
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-[oklch(1_0_0/0.05)]">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-[oklch(1_0_0/0.05)] flex-shrink-0">
         <div className="flex items-center gap-2">
           <span className="mono text-[oklch(0.40_0_0)] text-[10px] font-medium">09 //</span>
           <span className="card-label">WORKOUT LOG</span>
@@ -162,96 +209,118 @@ function WorkoutLogModule() {
         </span>
       </div>
 
-      {/* Day cards */}
-      <div className="flex-1 p-3 flex gap-2">
+      {/* Day strip — click to select */}
+      <div className="flex gap-1.5 px-3 pt-3 pb-2 flex-shrink-0">
         {days.map(date => {
           const { weekday, day } = fmtDayLabel(date)
           const type = workoutMap.get(date)
           const isToday = date === today
           const isPast = date < today
-          const isEditing = editingDate === date
-
-          let content: React.ReactNode
-          if (isEditing) {
-            content = (
-              <div className="relative w-full">
-                <input
-                  ref={inputRef}
-                  value={draft}
-                  onChange={e => { setDraft(e.target.value); setShowSuggestions(true) }}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') commit(date, draft)
-                    if (e.key === 'Escape') cancel()
-                  }}
-                  onBlur={() => setTimeout(cancel, 150)}
-                  className="w-full bg-transparent outline-none text-[10px] text-white text-center border-b border-[oklch(0.72_0.18_145/0.5)] pb-0.5"
-                  placeholder="type…"
-                />
-                {showSuggestions && filtered.length > 0 && (
-                  <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 z-20 card rounded-sm w-36 overflow-hidden">
-                    {filtered.map(t => (
-                      <button
-                        key={t}
-                        onMouseDown={() => commit(date, t)}
-                        className="w-full text-left px-2 py-1 text-[10px] text-[oklch(0.70_0_0)] hover:bg-[oklch(1_0_0/0.05)] hover:text-white transition-colors"
-                      >
-                        {t}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )
-          } else if (type) {
-            content = (
-              <span className="mono text-[10px] text-white font-medium text-center leading-tight">
-                {type.toUpperCase()}
-              </span>
-            )
-          } else if (isPast) {
-            content = (
-              <span className="mono text-[10px] text-[oklch(0.65_0.22_25)] font-medium text-center">
-                DID NOT GO
-              </span>
-            )
-          } else if (isToday) {
-            content = (
-              <span className="mono text-[10px] text-[oklch(0.35_0_0)] italic text-center">
-                Set today…
-              </span>
-            )
-          } else {
-            content = <span className="mono text-[10px] text-[oklch(0.30_0_0)] text-center">—</span>
-          }
-
+          const isSel = date === selected
           return (
-            <div
+            <button
               key={date}
-              onClick={() => !isEditing && startEdit(date)}
-              className={`
-                flex-1 flex flex-col items-center justify-between gap-2 p-2 rounded-sm cursor-pointer
-                border transition-colors group relative
-                ${isToday
-                  ? 'border-white/20 bg-[oklch(1_0_0/0.03)] hover:border-white/40'
-                  : 'border-[oklch(1_0_0/0.06)] hover:border-[oklch(1_0_0/0.15)] hover:bg-[oklch(1_0_0/0.02)]'
-                }
-              `}
+              onClick={() => setSelected(date)}
+              className={`flex-1 flex flex-col items-center gap-1 p-1.5 rounded-sm border transition-colors
+                ${isSel
+                  ? 'border-[oklch(0.72_0.18_145/0.6)] bg-[oklch(0.72_0.18_145/0.08)]'
+                  : isToday
+                    ? 'border-white/20 hover:border-white/40'
+                    : 'border-[oklch(1_0_0/0.06)] hover:border-[oklch(1_0_0/0.15)]'}`}
             >
-              <div className="text-center">
-                <p className="card-label">{weekday}</p>
-                <p className="mono text-xs text-white">{day}</p>
-              </div>
-              <div className="flex items-center justify-center w-full min-h-[28px]">
-                {content}
-              </div>
-              {!isEditing && (
-                <span className="opacity-0 group-hover:opacity-100 card-label text-[oklch(0.45_0_0)] transition-opacity absolute top-1 right-1">
-                  EDIT
-                </span>
-              )}
-            </div>
+              <span className="card-label">{weekday}</span>
+              <span className="mono text-xs text-white">{day}</span>
+              <span className={`text-[8px] leading-none min-h-[10px] ${type ? 'text-[oklch(0.72_0.18_145)]' : isPast ? 'text-[oklch(0.65_0.22_25)]' : 'text-[oklch(0.30_0_0)]'}`}>
+                {type ? '●' : isPast ? '○' : ''}
+              </span>
+            </button>
           )
         })}
+      </div>
+
+      {/* Selected-day detail */}
+      <div className="flex flex-col flex-1 min-h-0 border-t border-[oklch(1_0_0/0.05)]">
+        {/* Title */}
+        <div className="flex items-center justify-between px-3 py-2 flex-shrink-0 gap-2">
+          {editingTitle ? (
+            <div className="relative flex-1">
+              <input
+                autoFocus
+                value={titleDraft}
+                onChange={e => setTitleDraft(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') saveTitle(titleDraft); if (e.key === 'Escape') setEditingTitle(false) }}
+                onBlur={() => setTimeout(() => setEditingTitle(false), 150)}
+                placeholder="workout title…"
+                className="w-full bg-transparent outline-none text-sm text-white border-b border-[oklch(0.72_0.18_145/0.5)] pb-0.5"
+              />
+              {filtered.length > 0 && titleDraft && (
+                <div className="absolute top-full left-0 mt-1 z-20 card rounded-sm w-40 overflow-hidden">
+                  {filtered.map(t => (
+                    <button key={t} onMouseDown={() => saveTitle(t)} className="w-full text-left px-2 py-1 text-[10px] text-[oklch(0.70_0_0)] hover:bg-[oklch(1_0_0/0.05)] hover:text-white transition-colors">
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <button onClick={() => { setTitleDraft(title); setEditingTitle(true) }} className="text-sm text-white font-medium hover:text-[oklch(0.72_0.18_145)] transition-colors text-left truncate flex-1">
+              {title ? title : <span className="text-[oklch(0.40_0_0)] italic font-normal">+ set workout title</span>}
+            </button>
+          )}
+          <span className="mono text-[10px] text-[oklch(0.40_0_0)] flex-shrink-0">
+            {selected === today ? 'TODAY' : `${selLabel.weekday} ${selLabel.day}`}
+          </span>
+        </div>
+
+        {/* Exercise list */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-3">
+          {loadingDetail ? (
+            <p className="text-[oklch(0.35_0_0)] text-xs py-2">loading…</p>
+          ) : exercises.length === 0 ? (
+            <p className="text-[oklch(0.35_0_0)] text-xs py-2">No exercises logged — send a workout screenshot to the bot, or add one below.</p>
+          ) : (
+            groups.map((g, gi) => (
+              <div key={gi}>
+                {g.section && <p className="card-label text-[oklch(0.55_0_0)] mt-2 mb-0.5">{g.section.toUpperCase()}</p>}
+                {g.items.map(({ ex, idx }) => (
+                  <div key={idx} className="group flex items-center gap-2 py-1 border-b border-[oklch(1_0_0/0.03)]">
+                    <button
+                      onClick={() => persist(exercises.map((e, i) => i === idx ? { ...e, done: !e.done } : e))}
+                      className={`text-[10px] flex-shrink-0 w-4 ${ex.done ? 'text-[oklch(0.72_0.18_145)]' : 'text-[oklch(0.40_0_0)]'}`}
+                    >
+                      {ex.done ? '✓' : '○'}
+                    </button>
+                    <span className={`text-xs flex-1 truncate ${ex.done ? 'text-[oklch(0.80_0_0)]' : 'text-[oklch(0.45_0_0)] line-through'}`}>
+                      {ex.name}{ex.note ? <span className="text-[oklch(0.45_0_0)]"> · {ex.note}</span> : null}
+                    </span>
+                    <span className="mono text-[10px] text-[oklch(0.60_0_0)] flex-shrink-0">
+                      {ex.raw ?? (ex.sets && ex.reps ? `${ex.sets}x${ex.reps}` : '')}
+                    </span>
+                    <button
+                      onClick={() => persist(exercises.filter((_, i) => i !== idx))}
+                      className="opacity-0 group-hover:opacity-100 text-[10px] text-[oklch(0.40_0_0)] hover:text-[oklch(0.65_0.22_25)] flex-shrink-0 transition-opacity"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Add exercise */}
+        <div className="flex gap-2 items-center px-3 py-2 border-t border-[oklch(1_0_0/0.05)] flex-shrink-0">
+          <input
+            value={addDraft}
+            onChange={e => setAddDraft(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') addExercise() }}
+            placeholder="add exercise — e.g. Bench press 3x10"
+            className="flex-1 bg-transparent text-xs text-white outline-none placeholder-[oklch(0.35_0_0)]"
+          />
+          <button onClick={addExercise} disabled={!addDraft.trim()} className="card-label text-[oklch(0.72_0.18_145)] hover:text-white disabled:opacity-30 transition-colors">ADD</button>
+        </div>
       </div>
     </div>
   )

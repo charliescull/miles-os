@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isAuthenticatedFromRequest } from '@/lib/auth'
+import { createCalendarEvent, deleteCalendarEvent, parseEventFromText, type EventInput } from '@/lib/calendar/calendarWrite'
 
 // Module-level cache (5 min)
 let cache: { data: unknown; ts: number } | null = null
@@ -67,6 +68,43 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     console.error('Calendar parse error:', err)
     return NextResponse.json([], { headers: { 'cache-control': 'no-store' } })
+  }
+}
+
+// Create an event. POST { text } (natural language → parsed) OR explicit { summary, start, ... }.
+// Used by the Telegram bot and for testing. Write goes through the service account.
+export async function POST(req: NextRequest) {
+  if (!await isAuthenticatedFromRequest(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const body = await req.json().catch(() => ({}))
+  try {
+    let input: EventInput | null = null
+    if (typeof body.summary === 'string' && typeof body.start === 'string') {
+      input = body as EventInput
+    } else if (typeof body.text === 'string' && body.text.trim()) {
+      input = await parseEventFromText(body.text)
+      if (!input) return NextResponse.json({ created: false, reason: 'not a scheduling request' })
+    } else {
+      return NextResponse.json({ error: 'provide { text } or { summary, start }' }, { status: 400 })
+    }
+
+    const event = await createCalendarEvent(input)
+    return NextResponse.json({ created: true, event }, { status: 201 })
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : 'Calendar create failed' }, { status: 500 })
+  }
+}
+
+// Delete an event (test cleanup / future cancel intent). DELETE ?id=<eventId>.
+export async function DELETE(req: NextRequest) {
+  if (!await isAuthenticatedFromRequest(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const id = req.nextUrl.searchParams.get('id')
+  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
+  try {
+    await deleteCalendarEvent(id)
+    return NextResponse.json({ deleted: true, id })
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : 'Calendar delete failed' }, { status: 500 })
   }
 }
 
