@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
-import { classifyCapture } from '@/lib/router/classifyCapture'
-import { classifyTelegramIntent } from '@/lib/router/telegramIntent'
 import { getServiceClient, USER_ID } from '@/lib/supabase'
 import { embedAndStore } from '@/lib/memory'
 import { fetchTelegramImage, analyzeImage } from '@/lib/vision/analyzeImage'
 import { saveWorkoutDetail } from '@/lib/workouts/saveWorkout'
 import { logStandardFood, type Macros, type LoggedMeal } from '@/lib/nutrition/foodLog'
 import { analyzeAndSaveRecipe } from '@/lib/nutrition/recipe'
-import { detectCompletionIntent, completeTaskByQuery } from '@/lib/tasks/taskIntent'
-import { parseEventFromText, createCalendarEvent } from '@/lib/calendar/calendarWrite'
+import { routeTextMessage } from '@/lib/router/routeText'
 import { localDateKey } from '@/lib/localDateKey'
 
 async function sendTelegram(chatId: number, text: string, extra?: Record<string, unknown>) {
@@ -146,90 +143,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
-    // ---- 1. Task check-off (regex; cheap & specific) ----
-    const det = detectCompletionIntent(text)
-    if (det.isCompletion) {
-      const { matched } = await completeTaskByQuery(det.query)
-      if (matched) {
-        await recordCapture(text, 'task_done', matched.id)
-        await sendTelegram(chatId, `✅ Checked off: *${matched.title}*`)
-        return NextResponse.json({ ok: true })
-      }
-      // phrased like completion but no task matched → fall through so it's still captured
-    }
-
-    // ---- 2. Intent route (calendar / food / recipe / capture) ----
-    const intent = await classifyTelegramIntent(text)
-
-    if (intent === 'calendar') {
-      const event = await parseEventFromText(text)
-      if (event) {
-        const created = await createCalendarEvent(event)
-        await recordCapture(text, 'calendar')
-        const when = created.allDay ? created.start : created.start.replace('T', ' ').slice(0, 16)
-        await sendTelegram(chatId, `📅 *Event created:* ${created.summary}\n${when}\n[Open in Calendar](${created.htmlLink})`)
-        return NextResponse.json({ ok: true })
-      }
-      // not actually schedulable → fall through to capture
-    }
-
-    if (intent === 'food') {
-      const { meal, totals } = await logStandardFood(text)
-      await recordCapture(text, 'food')
-      await sendTelegram(chatId, foodConfirm(meal, totals))
-      return NextResponse.json({ ok: true })
-    }
-
-    if (intent === 'recipe') {
-      try {
-        const r = await analyzeAndSaveRecipe(text)
-        await recordCapture(text, 'recipe', r.id)
-        await sendTelegram(chatId, `📖 *Recipe saved:* ${r.dish_name}\n${r.calories_kcal} kcal · ${r.protein_g}P / ${r.carbs_g}C / ${r.fat_g}F\nScore: *${r.food_score}* — ${r.score_tag}`)
-        return NextResponse.json({ ok: true })
-      } catch (err) {
-        console.error('Recipe save failed, falling back to capture:', err)
-        // fall through to capture
-      }
-    }
-
-    // ---- 3. Default: existing capture pipeline (classify → tasks/notes → embed) ----
-    const classification = await classifyCapture(text)
-    const db = getServiceClient()
-    const { data: capture } = await db.from('raw_captures').insert({
-      user_id: USER_ID,
-      source: 'telegram',
-      raw_text: text,
-      classification,
-      llm_source: 'anthropic',
-      routed_to: classification.kind,
-    }).select().single()
-
-    let routedId: string | null = null
-    if (['task', 'blocker', 'content', 'decision'].includes(classification.kind)) {
-      const { data: task } = await db.from('tasks').insert({
-        user_id: USER_ID,
-        title: classification.summary,
-        urgency: classification.urgency,
-        is_key: classification.is_key,
-        tags: classification.tags,
-        owner: classification.owner,
-        kind: classification.kind,
-        status: classification.kind === 'blocker' ? 'blocked' : 'open',
-        priority_score: classification.is_key ? 100 : 50,
-      }).select().single()
-      if (task) routedId = task.id
-    }
-
-    if (capture?.id && routedId) {
-      await db.from('raw_captures').update({ routed_id: routedId }).eq('id', capture.id)
-    }
-
-    embedAndStore(text, 'capture', capture?.id ?? null)
-
-    const emoji = { task: '✅', blocker: '🚧', decision: '🤔', content: '📝', note: '📌', habit: '💪' }[classification.kind] ?? '📌'
-    const reply = `${emoji} *${classification.kind.toUpperCase()}* captured\n\n_${classification.summary}_\n\nUrgency: *${classification.urgency.replace('_', ' ')}*`
-    await sendTelegram(chatId, reply, { reply_markup: URGENCY_KEYBOARD })
-
+    // Route text/voice through the shared router (same brain as /api/quick).
+    const result = await routeTextMessage(text, 'telegram')
+    await sendTelegram(chatId, result.confirmation, result.isCapture ? { reply_markup: URGENCY_KEYBOARD } : undefined)
     return NextResponse.json({ ok: true })
   } catch (err) {
     console.error('Telegram webhook error:', err)
