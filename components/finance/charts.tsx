@@ -2,21 +2,24 @@
 
 import { useState } from 'react'
 
-const GREEN = 'oklch(0.72 0.18 145)'
-const RED = 'oklch(0.65 0.22 25)'
+// B&W 2.0 signal tokens — match --signal-up / --signal-down in globals.css
+const GREEN = 'oklch(0.78 0.17 150)'
+const RED = 'oklch(0.64 0.21 27)'
 
-// Categorical palette for pies (gain/loss coloring does NOT apply here — spec §10).
+// Categorical palette for pies: chroma is reserved for state signals (spec §10
+// still applies — no gain/loss coloring here), so categories get a white→gray
+// luminance ramp instead of hues.
 const PIE_COLORS = [
-  'oklch(0.72 0.18 145)',
-  'oklch(0.60 0.10 230)',
-  'oklch(0.78 0.16 90)',
-  'oklch(0.70 0.14 300)',
-  'oklch(0.72 0.13 60)',
-  'oklch(0.70 0.12 190)',
-  'oklch(0.65 0.16 350)',
-  'oklch(0.65 0.22 25)',
-  'oklch(0.55 0.10 145)',
-  'oklch(0.50 0 0)',
+  'oklch(0.96 0 0)',
+  'oklch(0.84 0 0)',
+  'oklch(0.72 0 0)',
+  'oklch(0.61 0 0)',
+  'oklch(0.51 0 0)',
+  'oklch(0.42 0 0)',
+  'oklch(0.34 0 0)',
+  'oklch(0.27 0 0)',
+  'oklch(0.21 0 0)',
+  'oklch(0.16 0 0)',
 ]
 
 function points(data: number[], w: number, h: number, pad = 2): string {

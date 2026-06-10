@@ -55,23 +55,22 @@ export default function LoginPage() {
               className="
                 w-full bg-transparent border border-[oklch(1_0_0/0.08)] rounded-sm
                 px-3 py-2 text-sm text-white placeholder-[oklch(0.45_0_0)]
-                focus:outline-none focus:border-[oklch(0.72_0.18_145/0.5)]
+                focus:outline-none focus:border-white/50
                 mono
               "
             />
           </div>
 
           {error && (
-            <p className="text-xs text-[oklch(0.65_0.22_25)]">{error}</p>
+            <p className="text-xs text-[var(--signal-down)]">{error}</p>
           )}
 
           <button
             type="submit"
             disabled={loading || !password}
             className="
-              w-full py-2 px-4 rounded-sm text-sm font-medium
-              bg-[oklch(0.72_0.18_145/0.15)] border border-[oklch(0.72_0.18_145/0.3)]
-              text-[oklch(0.72_0.18_145)] hover:bg-[oklch(0.72_0.18_145/0.25)]
+              w-full py-2 px-4 hud text-sm tracking-[0.18em]
+              bg-white text-black hover:bg-[oklch(0.90_0_0)]
               disabled:opacity-40 disabled:cursor-not-allowed
               transition-colors
             "

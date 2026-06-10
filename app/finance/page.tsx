@@ -2,11 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import Shell from '@/components/dashboard/Shell'
+import FinanceCore from '@/components/finance/FinanceCore'
 import { LineChart, Sparkline, Donut } from '@/components/finance/charts'
+import { HatchStrip } from '@/components/hud'
 import { RefreshCw, ChevronDown } from 'lucide-react'
 
-const GREEN = 'oklch(0.72 0.18 145)'
-const RED = 'oklch(0.65 0.22 25)'
+// B&W 2.0 signal tokens — match --signal-up / --signal-down in globals.css
+const GREEN = 'oklch(0.78 0.17 150)'
+const RED = 'oklch(0.64 0.21 27)'
 
 // ---- shapes (mirror lib/finance/types.ts FinanceView) ----
 interface Candle { t: number[]; c: number[] }
@@ -83,7 +86,7 @@ function TopCard({ v, ticker }: { v: FinanceView; ticker: string }) {
               <button
                 key={rr}
                 onClick={() => setRange(rr)}
-                className={`mono text-[9px] px-1.5 py-0.5 rounded-sm border ${range === rr ? 'border-[oklch(0.72_0.18_145/0.4)] text-white' : 'border-[oklch(1_0_0/0.06)] text-[oklch(0.45_0_0)]'}`}
+                className={`mono text-[9px] px-1.5 py-0.5 border ${range === rr ? 'border-white/50 text-white' : 'border-[oklch(1_0_0/0.06)] text-[oklch(0.45_0_0)]'}`}
               >
                 {rr.slice(1)}D
               </button>
@@ -165,10 +168,15 @@ export default function FinancePage() {
 
   return (
     <Shell>
-      <div className="p-4 space-y-3 overflow-y-auto h-[calc(100vh-40px)]">
+      <div className="overflow-y-auto h-[calc(100vh-40px)] bg-black">
+        {/* Net-worth core organ — flashes green/red on daily P/L */}
+        <FinanceCore className="h-[28vh] min-h-[200px]" />
+        <HatchStrip height={6} />
+
+      <div className="p-4 space-y-3">
 
         {/* ---- money header ---- */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {/* net worth */}
           <div className="card rounded-sm p-4">
             <div className="flex items-center justify-between">
@@ -215,9 +223,9 @@ export default function FinancePage() {
                 onKeyDown={e => e.key === 'Enter' && logSpend()}
                 inputMode="decimal"
                 placeholder="spent $__"
-                className="mono text-xs bg-[oklch(0.14_0_0)] border border-[oklch(1_0_0/0.08)] rounded-sm px-2 py-1 w-24 text-white placeholder:text-[oklch(0.40_0_0)] focus:outline-none focus:border-[oklch(0.72_0.18_145/0.4)]"
+                className="mono text-xs bg-[oklch(0.06_0_0)] border border-[oklch(1_0_0/0.08)] px-2 py-1 w-24 text-white placeholder:text-[oklch(0.40_0_0)] focus:outline-none focus:border-white/40"
               />
-              <button onClick={logSpend} className="mono text-xs px-3 py-1 rounded-sm border border-[oklch(0.72_0.18_145/0.3)] text-[oklch(0.72_0.18_145)] hover:bg-[oklch(0.72_0.18_145/0.1)] transition-colors">
+              <button onClick={logSpend} className="hud text-xs px-3 py-1 bg-white text-black hover:bg-[oklch(0.90_0_0)] transition-colors">
                 log
               </button>
             </div>
@@ -240,12 +248,12 @@ export default function FinancePage() {
           </div>
 
           {/* top 3 */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {v.top3.map(t => <TopCard key={t} v={v} ticker={t} />)}
           </div>
 
           {/* all holdings */}
-          <div>
+          <div className="overflow-x-auto">
             <div className="grid grid-cols-[64px_1fr_72px_140px_140px_90px_80px_90px] gap-2 px-2 pb-1 border-b border-[oklch(1_0_0/0.06)]">
               {['TICKER', '7D', 'PRICE', '7D P/L', 'COST P/L', 'SHARES', 'AVG', 'VALUE'].map(h => (
                 <span key={h} className="card-label">{h}</span>
@@ -269,7 +277,7 @@ export default function FinancePage() {
           </div>
 
           {/* pies */}
-          <div className="grid grid-cols-2 gap-3 pt-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
             <div className="card rounded-sm p-3">
               <p className="card-label mb-2">SECTOR</p>
               <Donut slices={v.sectorPie} />
@@ -284,6 +292,7 @@ export default function FinancePage() {
         <p className="card-label text-center text-[oklch(0.35_0_0)]">
           updated {new Date(v.fetchedAt).toLocaleString()} · prices via Finnhub/Yahoo · XRP pinned
         </p>
+      </div>
       </div>
     </Shell>
   )

@@ -85,7 +85,7 @@ export default function CalendarCard() {
                 {DAY_NAMES[i]}
               </span>
               <span className={`mono text-sm font-semibold leading-none ${
-                isSelected ? 'text-black' : isToday ? 'text-[oklch(0.72_0.18_145)]' : 'text-white'
+                isSelected ? 'text-black' : isToday ? 'glow' : 'text-white'
               }`}>
                 {dayNum.toString().padStart(2, '0')}
               </span>

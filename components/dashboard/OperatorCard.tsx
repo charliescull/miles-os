@@ -4,6 +4,28 @@ import { useState, useEffect } from 'react'
 import Panel from './Panel'
 import { config } from '@/lib/config'
 
+// Same streak rules as the HEALTH workout log: consecutive logged days back
+// from today; REST days don't break it; today not yet logged doesn't break it.
+function calcStreak(entries: { date: string; workout_type: string | null }[]): number {
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: config.timezone })
+  const map = new Map(entries.map(e => [e.date, e.workout_type]))
+  let streak = 0
+  for (let i = 0; i < 30; i++) {
+    const d = new Date()
+    d.setDate(d.getDate() - i)
+    const key = d.toLocaleDateString('en-CA', { timeZone: config.timezone })
+    const type = map.get(key)
+    if (type === undefined || type === null) {
+      if (key < today) break
+    } else if (type.toUpperCase() === 'REST') {
+      continue
+    } else {
+      streak++
+    }
+  }
+  return streak
+}
+
 export default function OperatorCard() {
   const [streak, setStreak] = useState(0)
   const [focus, setFocus] = useState('')
@@ -13,6 +35,13 @@ export default function OperatorCard() {
   useEffect(() => {
     const saved = localStorage.getItem('os-focus')
     if (saved) setFocus(saved)
+
+    fetch('/api/workouts?days=30')
+      .then(r => (r.ok ? r.json() : []))
+      .then((data: { date: string; workout_type: string | null }[]) => {
+        if (Array.isArray(data)) setStreak(calcStreak(data))
+      })
+      .catch(() => {})
   }, [])
 
   function saveFocus() {
@@ -27,8 +56,8 @@ export default function OperatorCard() {
       label="OPERATOR"
       badge={
         <span className="flex items-center gap-1">
-          <span className="online-dot w-1.5 h-1.5 rounded-full bg-[oklch(0.72_0.18_145)] inline-block" />
-          <span className="card-label text-[oklch(0.72_0.18_145)]">ONLINE</span>
+          <span className="online-dot w-1.5 h-1.5 bg-[var(--signal-up)] inline-block" style={{ boxShadow: '0 0 6px oklch(0.78 0.17 150 / 0.6)' }} />
+          <span className="card-label text-[var(--signal-up)]">ONLINE</span>
         </span>
       }
       className="min-h-0"
@@ -36,10 +65,10 @@ export default function OperatorCard() {
       <div className="flex gap-3">
         {/* Avatar placeholder */}
         <div className="
-          w-12 h-12 rounded-sm flex-shrink-0
-          bg-[oklch(0.15_0_0)] border border-[oklch(1_0_0/0.06)]
+          w-12 h-12 flex-shrink-0
+          bg-[oklch(0.06_0_0)] border border-white/20 glow-box
           flex items-center justify-center
-          text-[oklch(0.72_0.18_145)] text-lg font-bold mono
+          text-white text-lg hud
         ">
           {config.displayName.slice(0, 2).toUpperCase()}
         </div>
@@ -63,7 +92,7 @@ export default function OperatorCard() {
               onBlur={saveFocus}
               onKeyDown={e => { if (e.key === 'Enter') saveFocus() }}
               className="
-                w-full bg-transparent border-b border-[oklch(0.72_0.18_145/0.4)]
+                w-full bg-transparent border-b border-white/40
                 text-xs text-white outline-none pb-0.5
               "
               placeholder="Today's focus..."

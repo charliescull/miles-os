@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Panel from './Panel'
+import { BlockGauge } from '@/components/hud'
 import { config } from '@/lib/config'
 
 interface HabitState {
@@ -85,14 +86,9 @@ export default function HabitsCard() {
       noPadding
       className="min-h-0"
     >
-      {/* Progress bar */}
+      {/* Progress gauge */}
       <div className="px-3 pt-2 pb-1">
-        <div className="h-0.5 bg-[oklch(0.18_0_0)] rounded-full overflow-hidden">
-          <div
-            className="h-full bg-[oklch(0.72_0.18_145)] transition-all duration-500"
-            style={{ width: `${pct}%` }}
-          />
-        </div>
+        <BlockGauge ratio={done / Math.max(1, total)} segments={total * 3} signal="up" />
       </div>
 
       {done === 0 && (
@@ -114,12 +110,13 @@ export default function HabitsCard() {
               `}
             >
               <span className={`
-                w-3.5 h-3.5 rounded-sm border flex items-center justify-center flex-shrink-0 transition-colors
+                w-3.5 h-3.5 border flex items-center justify-center flex-shrink-0 transition-colors
                 ${isDone
-                  ? 'bg-[oklch(0.72_0.18_145)] border-[oklch(0.72_0.18_145)]'
+                  ? 'bg-[var(--signal-up)] border-[var(--signal-up)]'
                   : 'border-[oklch(0.30_0_0)] bg-transparent'
                 }
-              `}>
+              `}
+              style={isDone ? { boxShadow: '0 0 6px oklch(0.78 0.17 150 / 0.5)' } : undefined}>
                 {isDone && (
                   <svg width="8" height="6" viewBox="0 0 8 6" fill="none">
                     <path d="M1 3L3 5L7 1" stroke="black" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -127,7 +124,7 @@ export default function HabitsCard() {
                 )}
               </span>
               <div className="min-w-0">
-                <p className={`text-[11px] truncate leading-tight ${isDone ? 'text-[oklch(0.72_0.18_145)]' : 'text-[oklch(0.70_0_0)]'}`}>
+                <p className={`text-[11px] truncate leading-tight ${isDone ? 'text-[var(--signal-up)]' : 'text-[oklch(0.70_0_0)]'}`}>
                   {habit.label}
                 </p>
                 <p className="card-label">{habit.category}</p>

@@ -44,9 +44,9 @@ function LiveClock() {
         <p className="card-label mt-1">{dateStr}</p>
       </div>
       <div className="text-right">
-        <p className="mono text-3xl font-light text-white leading-none tracking-tight">
+        <p className="mono text-3xl font-light leading-none tracking-tight glow">
           {time.h}:{time.m}
-          <span className="text-lg text-[oklch(0.45_0_0)]">{time.s}</span>
+          <span className="text-lg text-[oklch(0.45_0_0)]" style={{ textShadow: 'none' }}>{time.s}</span>
         </p>
         <p className="card-label mt-1">LOCAL TIME</p>
       </div>
@@ -126,7 +126,7 @@ export default function SessionCard() {
             w-full bg-transparent border-b border-[oklch(1_0_0/0.08)]
             text-sm text-white outline-none pb-1
             placeholder-[oklch(0.40_0_0)]
-            focus:border-[oklch(0.72_0.18_145/0.5)] transition-colors
+            focus:border-white/50 transition-colors
           "
         />
       </div>
@@ -142,15 +142,14 @@ export default function SessionCard() {
           className="flex-1 bg-transparent text-sm text-white outline-none placeholder-[oklch(0.35_0_0)]"
         />
         {toast && (
-          <span className="card-label text-[oklch(0.72_0.18_145)]">{toast}</span>
+          <span className={`card-label ${toast === 'Captured' ? 'text-[var(--signal-up)]' : 'text-[var(--signal-down)]'}`}>{toast}</span>
         )}
         <button
           onClick={handleCapture}
           disabled={sending || !capture.trim()}
           className="
-            flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-[10px] font-bold tracking-widest
-            bg-[oklch(0.72_0.18_145/0.15)] border border-[oklch(0.72_0.18_145/0.3)]
-            text-[oklch(0.72_0.18_145)] hover:bg-[oklch(0.72_0.18_145/0.25)]
+            flex items-center gap-1.5 px-2.5 py-1 hud text-[10px] tracking-[0.18em]
+            bg-white text-black hover:bg-[oklch(0.90_0_0)]
             disabled:opacity-30 disabled:cursor-not-allowed transition-colors
           "
         >
@@ -164,7 +163,7 @@ export default function SessionCard() {
         <div className="mt-3 space-y-1">
           {tasks.map(task => (
             <div key={task.id} className="flex items-center gap-2 py-1">
-              <span className="w-1 h-1 rounded-full bg-[oklch(0.72_0.18_145)] flex-shrink-0" />
+              <span className="w-1 h-1 bg-white flex-shrink-0" style={{ boxShadow: '0 0 4px oklch(1 0 0 / 0.6)' }} />
               <span className="text-xs text-[oklch(0.75_0_0)] flex-1 truncate">{task.title}</span>
               {task.time_estimate_min && (
                 <span className="mono text-[10px] text-[oklch(0.40_0_0)]">{task.time_estimate_min}m</span>

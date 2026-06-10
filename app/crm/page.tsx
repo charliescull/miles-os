@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Shell from '@/components/dashboard/Shell'
+import CrmConstellation from '@/components/crm/CrmConstellation'
+import { HatchStrip } from '@/components/hud'
 import { Plus, Search, X } from 'lucide-react'
 
 type Urgency = 'overdue' | 'today' | 'this_week' | 'later'
@@ -29,11 +31,13 @@ interface Entity {
   created_at: string
 }
 
+// B&W 2.0: red/green are the only signals (overdue = danger, today = go).
+// "this week" / "later" carry no urgency signal → white / muted white.
 const URGENCY_COLS: { key: Urgency; label: string; color: string }[] = [
-  { key: 'overdue', label: 'OVERDUE', color: 'oklch(0.65 0.22 25)' },
-  { key: 'today', label: 'TODAY', color: 'oklch(0.72 0.18 145)' },
-  { key: 'this_week', label: 'THIS WEEK', color: 'oklch(0.78 0.16 90)' },
-  { key: 'later', label: 'LATER', color: 'oklch(0.60 0.10 230)' },
+  { key: 'overdue', label: 'OVERDUE', color: 'oklch(0.64 0.21 27)' },
+  { key: 'today', label: 'TODAY', color: 'oklch(0.78 0.17 150)' },
+  { key: 'this_week', label: 'THIS WEEK', color: 'oklch(0.88 0 0)' },
+  { key: 'later', label: 'LATER', color: 'oklch(0.45 0 0)' },
 ]
 
 const SUB_TABS: { key: SubTab; label: string }[] = [
@@ -64,19 +68,19 @@ function TaskCard({ task, onDone, onDelete }: { task: TaskItem; onDone: (id: str
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
           {task.is_key && (
-            <span className="mono text-[9px] font-bold px-1.5 py-0.5 rounded-sm bg-[oklch(0.78_0.16_90/0.15)] text-[oklch(0.78_0.16_90)]">KEY</span>
+            <span className="mono text-[9px] font-bold px-1.5 py-0.5 rounded-sm badge-warm">KEY</span>
           )}
           <button
             onClick={() => onDone(task.id)}
             title="Mark done"
-            className="opacity-0 group-hover:opacity-100 text-[oklch(0.72_0.18_145)] hover:text-white transition-all p-0.5"
+            className="opacity-0 group-hover:opacity-100 text-[var(--signal-up)] hover:text-white transition-all p-0.5"
           >
             ✓
           </button>
           <button
             onClick={() => onDelete(task.id)}
             title="Delete"
-            className="opacity-0 group-hover:opacity-100 text-[oklch(0.45_0_0)] hover:text-[oklch(0.65_0.22_25)] transition-all p-0.5"
+            className="opacity-0 group-hover:opacity-100 text-[oklch(0.45_0_0)] hover:text-[var(--signal-down)] transition-all p-0.5"
           >
             ✕
           </button>
@@ -238,7 +242,11 @@ export default function CrmPage() {
 
   return (
     <Shell>
-      <div className="flex flex-col h-[calc(100vh-40px)]">
+      <div className="flex flex-col h-[calc(100vh-40px)] bg-black">
+        {/* Relationship constellation band */}
+        <CrmConstellation className="flex-none h-[26vh] min-h-[190px]" />
+        <HatchStrip height={6} />
+
         {/* Sub-header */}
         <div className="flex items-center justify-between px-4 py-2 border-b border-[oklch(1_0_0/0.06)]">
           <div className="flex items-center gap-1">
@@ -297,13 +305,13 @@ export default function CrmPage() {
         {subTab === 'people' && (
           <div className="flex-1 overflow-y-auto p-4">
             {loading ? (
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {[1,2,3,4].map(i => <div key={i} className="h-16 bg-[oklch(0.12_0_0)] rounded-sm animate-pulse" />)}
               </div>
             ) : filteredEntities.length === 0 ? (
               <p className="text-[oklch(0.35_0_0)] text-xs">No people yet — click NEW to add someone.</p>
             ) : (
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {filteredEntities.map(e => <PersonCard key={e.id} entity={e} />)}
               </div>
             )}
@@ -317,7 +325,7 @@ export default function CrmPage() {
               {URGENCY_COLS.map(({ key, label, color }) => {
                 const col = getCol(key)
                 return (
-                  <div key={key} className="flex flex-col bg-[oklch(0.08_0_0)] overflow-y-auto">
+                  <div key={key} className="flex flex-col bg-black overflow-y-auto">
                     <div className="flex items-center justify-between px-3 py-2 border-b border-[oklch(1_0_0/0.05)] flex-shrink-0">
                       <div className="flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: color }} />
@@ -349,9 +357,9 @@ export default function CrmPage() {
                 <div key={t.id} className="flex items-center gap-3 px-3 py-2 card rounded-sm hover:border-[oklch(1_0_0/0.12)] transition-colors group">
                   <span className="text-xs text-white flex-1 truncate">{t.title}</span>
                   <span className="card-label">{t.urgency.replace('_', ' ')}</span>
-                  {t.is_key && <span className="mono text-[9px] font-bold px-1.5 py-0.5 rounded-sm bg-[oklch(0.78_0.16_90/0.15)] text-[oklch(0.78_0.16_90)]">KEY</span>}
-                  <button onClick={() => markDone(t.id)} className="opacity-0 group-hover:opacity-100 text-[oklch(0.72_0.18_145)] hover:text-white text-xs transition-all">✓</button>
-                  <button onClick={() => deleteTask(t.id)} className="opacity-0 group-hover:opacity-100 text-[oklch(0.45_0_0)] hover:text-[oklch(0.65_0.22_25)] text-xs transition-all">✕</button>
+                  {t.is_key && <span className="mono text-[9px] font-bold px-1.5 py-0.5 rounded-sm badge-warm">KEY</span>}
+                  <button onClick={() => markDone(t.id)} className="opacity-0 group-hover:opacity-100 text-[var(--signal-up)] hover:text-white text-xs transition-all">✓</button>
+                  <button onClick={() => deleteTask(t.id)} className="opacity-0 group-hover:opacity-100 text-[oklch(0.45_0_0)] hover:text-[var(--signal-down)] text-xs transition-all">✕</button>
                 </div>
               ))}
             </div>

@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import Shell from '@/components/dashboard/Shell'
+import HealthHeart from '@/components/health/HealthHeart'
+import { HatchStrip } from '@/components/hud'
 import { config } from '@/lib/config'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -97,9 +99,9 @@ function calcStreak(days: string[], workoutMap: Map<string, string | null>): num
 }
 
 function scoreColor(score: number): string {
-  if (score >= 60) return 'text-[oklch(0.72_0.18_145)]'
+  if (score >= 60) return 'text-[var(--signal-up)]'
   if (score >= 40) return 'text-white'
-  return 'text-[oklch(0.65_0.22_25)]'
+  return 'text-[var(--signal-down)]'
 }
 
 const CANONICAL_TYPES = [
@@ -205,7 +207,7 @@ function WorkoutLogModule() {
           <span className="card-label">WORKOUT LOG</span>
         </div>
         <span className="card-label">
-          LAST 10 DAYS · <span className="text-[oklch(0.72_0.18_145)]">STREAK {streak} DAY{streak !== 1 ? 'S' : ''}</span>
+          LAST 10 DAYS · <span className="text-[var(--signal-up)]">STREAK {streak} DAY{streak !== 1 ? 'S' : ''}</span>
         </span>
       </div>
 
@@ -221,16 +223,16 @@ function WorkoutLogModule() {
             <button
               key={date}
               onClick={() => setSelected(date)}
-              className={`flex-1 flex flex-col items-center gap-1 p-1.5 rounded-sm border transition-colors
+              className={`flex-1 flex flex-col items-center gap-1 p-1.5 border transition-colors
                 ${isSel
-                  ? 'border-[oklch(0.72_0.18_145/0.6)] bg-[oklch(0.72_0.18_145/0.08)]'
+                  ? 'border-white/60 bg-white/5 glow-box'
                   : isToday
                     ? 'border-white/20 hover:border-white/40'
                     : 'border-[oklch(1_0_0/0.06)] hover:border-[oklch(1_0_0/0.15)]'}`}
             >
               <span className="card-label">{weekday}</span>
               <span className="mono text-xs text-white">{day}</span>
-              <span className={`text-[8px] leading-none min-h-[10px] ${type ? 'text-[oklch(0.72_0.18_145)]' : isPast ? 'text-[oklch(0.65_0.22_25)]' : 'text-[oklch(0.30_0_0)]'}`}>
+              <span className={`text-[8px] leading-none min-h-[10px] ${type ? 'text-[var(--signal-up)]' : isPast ? 'text-[var(--signal-down)]' : 'text-[oklch(0.30_0_0)]'}`}>
                 {type ? '●' : isPast ? '○' : ''}
               </span>
             </button>
@@ -251,7 +253,7 @@ function WorkoutLogModule() {
                 onKeyDown={e => { if (e.key === 'Enter') saveTitle(titleDraft); if (e.key === 'Escape') setEditingTitle(false) }}
                 onBlur={() => setTimeout(() => setEditingTitle(false), 150)}
                 placeholder="workout title…"
-                className="w-full bg-transparent outline-none text-sm text-white border-b border-[oklch(0.72_0.18_145/0.5)] pb-0.5"
+                className="w-full bg-transparent outline-none text-sm text-white border-b border-white/40 pb-0.5"
               />
               {filtered.length > 0 && titleDraft && (
                 <div className="absolute top-full left-0 mt-1 z-20 card rounded-sm w-40 overflow-hidden">
@@ -264,7 +266,7 @@ function WorkoutLogModule() {
               )}
             </div>
           ) : (
-            <button onClick={() => { setTitleDraft(title); setEditingTitle(true) }} className="text-sm text-white font-medium hover:text-[oklch(0.72_0.18_145)] transition-colors text-left truncate flex-1">
+            <button onClick={() => { setTitleDraft(title); setEditingTitle(true) }} className="text-sm text-white font-medium hover:glow transition-colors text-left truncate flex-1">
               {title ? title : <span className="text-[oklch(0.40_0_0)] italic font-normal">+ set workout title</span>}
             </button>
           )}
@@ -287,7 +289,7 @@ function WorkoutLogModule() {
                   <div key={idx} className="group flex items-center gap-2 py-1 border-b border-[oklch(1_0_0/0.03)]">
                     <button
                       onClick={() => persist(exercises.map((e, i) => i === idx ? { ...e, done: !e.done } : e))}
-                      className={`text-[10px] flex-shrink-0 w-4 ${ex.done ? 'text-[oklch(0.72_0.18_145)]' : 'text-[oklch(0.40_0_0)]'}`}
+                      className={`text-[10px] flex-shrink-0 w-4 ${ex.done ? 'text-[var(--signal-up)]' : 'text-[oklch(0.40_0_0)]'}`}
                     >
                       {ex.done ? '✓' : '○'}
                     </button>
@@ -299,7 +301,7 @@ function WorkoutLogModule() {
                     </span>
                     <button
                       onClick={() => persist(exercises.filter((_, i) => i !== idx))}
-                      className="opacity-0 group-hover:opacity-100 text-[10px] text-[oklch(0.40_0_0)] hover:text-[oklch(0.65_0.22_25)] flex-shrink-0 transition-opacity"
+                      className="opacity-0 group-hover:opacity-100 text-[10px] text-[oklch(0.40_0_0)] hover:text-[var(--signal-down)] flex-shrink-0 transition-opacity"
                     >
                       ✕
                     </button>
@@ -319,7 +321,7 @@ function WorkoutLogModule() {
             placeholder="add exercise — e.g. Bench press 3x10"
             className="flex-1 bg-transparent text-xs text-white outline-none placeholder-[oklch(0.35_0_0)]"
           />
-          <button onClick={addExercise} disabled={!addDraft.trim()} className="card-label text-[oklch(0.72_0.18_145)] hover:text-white disabled:opacity-30 transition-colors">ADD</button>
+          <button onClick={addExercise} disabled={!addDraft.trim()} className="card-label text-white hover:glow disabled:opacity-30 transition-colors">ADD</button>
         </div>
       </div>
     </div>
@@ -391,9 +393,9 @@ function RecipeIntakeModule({ onSaved }: { onSaved: () => void }) {
       <div className="p-3 space-y-3">
         {/* Input bar */}
         <div className={`
-          flex gap-2 items-center border rounded-sm px-3 py-2 transition-colors
+          flex gap-2 items-center border px-3 py-2 transition-colors
           ${analyzing
-            ? 'border-[oklch(0.72_0.18_145/0.4)] scanning-border'
+            ? 'border-white/40 glow-box'
             : 'border-[oklch(1_0_0/0.08)]'
           }
         `}>
@@ -410,9 +412,8 @@ function RecipeIntakeModule({ onSaved }: { onSaved: () => void }) {
             onClick={analyze}
             disabled={analyzing || !input.trim()}
             className="
-              flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-[10px] font-bold tracking-widest
-              bg-[oklch(0.72_0.18_145/0.15)] border border-[oklch(0.72_0.18_145/0.3)]
-              text-[oklch(0.72_0.18_145)] hover:bg-[oklch(0.72_0.18_145/0.25)]
+              flex items-center gap-1.5 px-2.5 py-1 hud text-[10px] tracking-[0.18em]
+              bg-white text-black hover:bg-[oklch(0.90_0_0)]
               disabled:opacity-30 disabled:cursor-not-allowed transition-colors
             "
           >
@@ -421,12 +422,12 @@ function RecipeIntakeModule({ onSaved }: { onSaved: () => void }) {
         </div>
 
         {analyzing && (
-          <div className="h-0.5 bg-[oklch(0.18_0_0)] rounded-full overflow-hidden">
-            <div className="h-full bg-[oklch(0.72_0.18_145)] animate-scanning" />
+          <div className="h-0.5 bg-[oklch(0.14_0_0)] overflow-hidden">
+            <div className="h-full bg-white animate-scanning" style={{ boxShadow: '0 0 8px oklch(1 0 0 / 0.6)' }} />
           </div>
         )}
 
-        {error && <p className="text-[10px] text-[oklch(0.65_0.22_25)]">{error}</p>}
+        {error && <p className="text-[10px] text-[var(--signal-down)]">{error}</p>}
 
         {result && (
           <>
@@ -444,11 +445,11 @@ function RecipeIntakeModule({ onSaved }: { onSaved: () => void }) {
                       onMouseLeave={() => setHoverRating(null)}
                       onClick={() => setTasteRating(prev => prev === n ? null : n)}
                       className={`
-                        w-7 h-7 rounded-sm border text-[10px] font-bold mono transition-colors
+                        w-7 h-7 border text-[10px] font-bold mono transition-colors
                         ${filled
                           ? isRed
-                            ? 'bg-[oklch(0.65_0.22_25/0.8)] border-[oklch(0.65_0.22_25)] text-white'
-                            : 'bg-[oklch(0.72_0.18_145/0.8)] border-[oklch(0.72_0.18_145)] text-black'
+                            ? 'bg-[oklch(0.64_0.21_27/0.8)] border-[var(--signal-down)] text-white'
+                            : 'bg-[oklch(0.78_0.17_150/0.8)] border-[var(--signal-up)] text-black'
                           : 'border-[oklch(1_0_0/0.12)] text-[oklch(0.40_0_0)] hover:border-[oklch(1_0_0/0.25)]'
                         }
                       `}
@@ -618,10 +619,10 @@ function RecipeHistoryModule({ refreshKey }: { refreshKey: number }) {
                       <div className="flex justify-end">
                         {isConfirming ? (
                           <div className="flex items-center gap-2">
-                            <span className="card-label text-[oklch(0.65_0.22_25)]">CONFIRM DELETE?</span>
+                            <span className="card-label text-[var(--signal-down)]">CONFIRM DELETE?</span>
                             <button
                               onClick={() => deleteRecipe(r.id)}
-                              className="card-label text-[oklch(0.65_0.22_25)] hover:text-white transition-colors px-2 py-0.5 border border-[oklch(0.65_0.22_25/0.4)] rounded-sm"
+                              className="card-label text-[var(--signal-down)] hover:text-white transition-colors px-2 py-0.5 border border-[oklch(0.64_0.21_27/0.4)] rounded-sm"
                             >
                               YES
                             </button>
@@ -635,7 +636,7 @@ function RecipeHistoryModule({ refreshKey }: { refreshKey: number }) {
                         ) : (
                           <button
                             onClick={() => setConfirming(r.id)}
-                            className="card-label text-[oklch(0.40_0_0)] hover:text-[oklch(0.65_0.22_25)] transition-colors"
+                            className="card-label text-[oklch(0.40_0_0)] hover:text-[var(--signal-down)] transition-colors"
                           >
                             DELETE
                           </button>
@@ -677,29 +678,32 @@ export default function HealthPage() {
 
   return (
     <Shell>
-      <div
-        className="flex h-[calc(100vh-40px)]"
-        style={{ gap: '1px', background: 'oklch(1 0 0 / 0.05)' }}
-      >
-        {/* Left column — 75% */}
-        <div
-          className="flex flex-col bg-[oklch(0.08_0_0)] overflow-hidden"
-          style={{ flex: '0 0 75%', gap: '1px' }}
-        >
-          {/* 09 // WORKOUT LOG — fills remaining space */}
-          <div className="flex flex-col" style={{ flex: '1 1 0', minHeight: 0 }}>
-            <WorkoutLogModule />
+      <div className="flex flex-col h-[calc(100vh-40px)] bg-black overflow-hidden">
+        {/* Cardiac organ band — the living heart + locked EKG */}
+        <HealthHeart className="flex-none h-[30vh] min-h-[220px]" />
+        <HatchStrip height={6} />
+
+        <div className="flex flex-col lg:flex-row flex-1 min-h-0" style={{ gap: '1px', background: 'oklch(1 0 0 / 0.06)' }}>
+          {/* Left column — 75% on desktop, full-width stacked on small */}
+          <div
+            className="flex flex-col bg-black overflow-hidden lg:[flex:0_0_75%]"
+            style={{ gap: '1px' }}
+          >
+            {/* 09 // WORKOUT LOG — fills remaining space */}
+            <div className="flex flex-col" style={{ flex: '1 1 0', minHeight: 0 }}>
+              <WorkoutLogModule />
+            </div>
+
+            {/* 10 // RECIPE INTAKE — natural height */}
+            <div className="flex-shrink-0 bg-black">
+              <RecipeIntakeModule onSaved={() => setHistoryKey(k => k + 1)} />
+            </div>
           </div>
 
-          {/* 10 // RECIPE INTAKE — natural height */}
-          <div className="flex-shrink-0 bg-[oklch(0.08_0_0)]">
-            <RecipeIntakeModule onSaved={() => setHistoryKey(k => k + 1)} />
+          {/* Right column — 25% on desktop, full-width stacked on small */}
+          <div className="flex flex-col bg-black lg:[flex:0_0_25%]">
+            <RecipeHistoryModule refreshKey={historyKey} />
           </div>
-        </div>
-
-        {/* Right column — 25%, full height, scrollable */}
-        <div className="flex flex-col bg-[oklch(0.08_0_0)]" style={{ flex: '0 0 25%' }}>
-          <RecipeHistoryModule refreshKey={historyKey} />
         </div>
       </div>
     </Shell>

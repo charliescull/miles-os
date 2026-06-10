@@ -32,7 +32,7 @@ function Sparkline({ data }: { data: number[] }) {
       <polyline
         points={pts}
         fill="none"
-        stroke="oklch(0.72 0.18 145)"
+        stroke="oklch(0.96 0 0)"
         strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -94,7 +94,7 @@ export default function FinancePulseCard() {
     <Panel
       id="07"
       label="FINANCE PULSE"
-      badge={<span className="card-label text-[oklch(0.72_0.18_145)]">LIVE</span>}
+      badge={<span className="card-label text-white drift-breathe">LIVE</span>}
       action={
         <button
           onClick={handleRefresh}
@@ -134,7 +134,7 @@ export default function FinancePulseCard() {
           <div className="mt-2 grid grid-cols-2 gap-2">
             <div>
               <p className="card-label mb-0.5">DAILY</p>
-              <p className={`mono text-sm font-semibold ${(d.daily_delta ?? 0) >= 0 ? 'text-[oklch(0.72_0.18_145)]' : 'text-[oklch(0.65_0.22_25)]'}`}>
+              <p className={`mono text-sm font-semibold ${(d.daily_delta ?? 0) >= 0 ? 'text-[var(--signal-up)]' : 'text-[var(--signal-down)]'}`}>
                 {data ? fmt(d.daily_delta ?? 0) : '+$[DAY]'}
               </p>
               <p className="mono text-[10px] text-[oklch(0.45_0_0)]">
@@ -143,7 +143,7 @@ export default function FinancePulseCard() {
             </div>
             <div>
               <p className="card-label mb-0.5">MONTHLY</p>
-              <p className={`mono text-sm font-semibold ${(d.monthly_delta ?? 0) >= 0 ? 'text-[oklch(0.72_0.18_145)]' : 'text-[oklch(0.65_0.22_25)]'}`}>
+              <p className={`mono text-sm font-semibold ${(d.monthly_delta ?? 0) >= 0 ? 'text-[var(--signal-up)]' : 'text-[var(--signal-down)]'}`}>
                 {data ? fmt(d.monthly_delta ?? 0) : '+$[MONTH]'}
               </p>
               <p className="mono text-[10px] text-[oklch(0.45_0_0)]">

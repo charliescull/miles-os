@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Shell from '@/components/dashboard/Shell'
+import { Serial, Barcode } from '@/components/hud'
 import { Check } from 'lucide-react'
 
 interface ReviewData {
@@ -91,41 +92,48 @@ export default function ReviewPage() {
 
   return (
     <Shell>
-      <div className="p-4 overflow-y-auto h-[calc(100vh-40px)] max-w-5xl mx-auto">
-        {/* Header */}
-        <div className="card rounded-sm p-4 mb-3">
+      <div className="p-4 overflow-y-auto h-[calc(100vh-40px)] max-w-5xl mx-auto bg-black">
+        {/* Header — system-log ledger banner */}
+        <div className="card rounded-none p-4 mb-3">
           <div className="flex items-start justify-between">
             <div>
-              <p className="card-label mb-1">WEEKLY REVIEW · {week.label}</p>
-              <h1 className="text-2xl font-light text-white">
-                <em className="not-italic font-medium">Mon</em> {week.start} →{' '}
-                <em className="not-italic font-medium">Sun</em> {week.end}
+              <p className="card-label mb-1">WEEKLY REVIEW · LEDGER {week.label} · {new Date().getFullYear()}</p>
+              <h1 className="display text-2xl text-white glow">
+                MON {week.start} <span className="text-[oklch(0.45_0_0)]">→</span> SUN {week.end}
+                <span className="cursor-blink ml-2">▮</span>
               </h1>
             </div>
             <div className="flex items-center gap-3">
               {saved && (
-                <span className="card-label text-[oklch(0.72_0.18_145)]">AUTO-SAVED</span>
+                <span className="card-label text-[var(--signal-up)]">● AUTO-SAVED</span>
               )}
               <button
                 onClick={seal}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-[11px] font-semibold tracking-widest transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-none text-[11px] hud tracking-[0.18em] transition-colors ${
                   sealed
-                    ? 'bg-[oklch(0.72_0.18_145/0.2)] border border-[oklch(0.72_0.18_145/0.4)] text-[oklch(0.72_0.18_145)]'
+                    ? 'border border-[var(--signal-up)] text-[var(--signal-up)]'
                     : 'bg-white text-black hover:bg-[oklch(0.90_0_0)]'
                 }`}
               >
                 <Check size={12} />
-                SEAL WEEK
+                {sealed ? 'SEALED' : 'SEAL WEEK'}
               </button>
             </div>
           </div>
+          <div className="flex items-center gap-3 mt-3 pt-3 border-t border-white/10" aria-hidden>
+            <Barcode seed={`review-${week.weekNum}`} bars={40} height={12} className="opacity-40" />
+            <Serial seed={`review-${week.weekNum}`} groups={[4, 4, 2]} />
+          </div>
         </div>
 
-        {/* Field grid */}
-        <div className="grid grid-cols-2 gap-3 mb-3">
-          {FIELDS.map(({ key, label }) => (
-            <div key={key} className="card rounded-sm p-4">
-              <p className="card-label mb-2">{label}</p>
+        {/* Field grid — ledger entries with line numbers */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+          {FIELDS.map(({ key, label }, i) => (
+            <div key={key} className="card rounded-none p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="hud text-[10px] text-[oklch(0.30_0_0)]">{String(i + 1).padStart(2, '0')} //</span>
+                <p className="card-label">{label}</p>
+              </div>
               <textarea
                 value={data[key]}
                 onChange={e => update(key, e.target.value)}
@@ -138,8 +146,11 @@ export default function ReviewPage() {
         </div>
 
         {/* Next week top 3 */}
-        <div className="card rounded-sm p-4">
-          <p className="card-label mb-2">NEXT WEEK — TOP 3</p>
+        <div className="card rounded-none p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="hud text-[10px] text-[oklch(0.30_0_0)]">07 //</span>
+            <p className="card-label">NEXT WEEK — TOP 3</p>
+          </div>
           <textarea
             value={data.next_week_top3}
             onChange={e => update('next_week_top3', e.target.value)}

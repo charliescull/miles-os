@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Plus } from 'lucide-react'
 import Panel from './Panel'
+import { BlockGauge } from '@/components/hud'
 import { config } from '@/lib/config'
 
 interface Meal {
@@ -150,19 +151,16 @@ export default function NutritionCard() {
       {/* Kcal summary */}
       <div className="px-3 pt-3 pb-2">
         <div className="flex items-baseline justify-between">
-          <span className="mono text-3xl font-light text-white">{fmt(totals.kcal)}</span>
+          <span className="mono text-3xl font-light glow">{fmt(totals.kcal)}</span>
           <span className="card-label">of {goals.kcal} kcal</span>
         </div>
-        <p className={`mono text-xs mt-0.5 ${remaining >= 0 ? 'text-[oklch(0.45_0_0)]' : 'text-[oklch(0.65_0.22_25)]'}`}>
+        <p className={`mono text-xs mt-0.5 ${remaining >= 0 ? 'text-[oklch(0.45_0_0)]' : 'text-[var(--signal-down)]'}`}>
           {remaining >= 0 ? `−${fmt(remaining)} deficit` : `+${fmt(-remaining)} over`}
         </p>
 
-        {/* Progress bar */}
-        <div className="mt-2 h-0.5 bg-[oklch(0.18_0_0)] rounded-full overflow-hidden">
-          <div
-            className="h-full bg-[oklch(0.72_0.18_145)] transition-all duration-500"
-            style={{ width: `${kcalPct}%` }}
-          />
+        {/* Fuel gauge — white while under goal, red signal once over */}
+        <div className="mt-2">
+          <BlockGauge ratio={kcalPct / 100} segments={24} signal={remaining < 0 ? 'down' : undefined} />
         </div>
 
         {/* Macros */}
@@ -203,7 +201,7 @@ export default function NutritionCard() {
         <span className="card-label">
           · CUTOFF · {goals.cutoffHour}:00 {goals.cutoffHour >= 12 ? 'PM' : 'AM'}
         </span>
-        <span className={`card-label ${pastCutoff ? 'text-[oklch(0.65_0.22_25)]' : ''}`}>
+        <span className={`card-label ${pastCutoff ? 'text-[var(--signal-down)]' : ''}`}>
           {pastCutoff ? 'CUTOFF PASSED' : `CUTOFF IN ${Math.floor(minsUntilCutoff / 60)}h ${minsUntilCutoff % 60}m`}
         </span>
       </div>

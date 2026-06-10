@@ -4,12 +4,45 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { config } from '@/lib/config'
+import { Barcode, Serial } from '@/components/hud'
+import MuteToggle from './MuteToggle'
 
-const TICKERS = [
-  { symbol: 'BTC', value: '$64,120' },
-  { symbol: 'NDX', value: '18,240' },
-  { symbol: 'XAU', value: '$2,384' },
-]
+// Live system telemetry — real numbers from the snapshot, not wallpaper.
+function LiveTicker() {
+  const [nw, setNw] = useState<string | null>(null)
+  const [day, setDay] = useState<{ text: string; up: boolean } | null>(null)
+
+  useEffect(() => {
+    fetch('/api/finance/snapshot')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => {
+        if (typeof d?.net_worth !== 'number') return
+        const usd = (n: number) =>
+          new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n)
+        setNw(usd(d.net_worth))
+        if (typeof d.daily_delta === 'number') {
+          setDay({ text: `${d.daily_delta >= 0 ? '+' : ''}${usd(d.daily_delta)}`, up: d.daily_delta >= 0 })
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  if (!nw) return <span className="card-label text-[oklch(0.30_0_0)]">SYNC…</span>
+  return (
+    <>
+      <span className="flex items-center gap-1.5">
+        <span className="card-label">NW</span>
+        <span className="mono text-xs text-white">{nw}</span>
+      </span>
+      {day && (
+        <span className="flex items-center gap-1.5">
+          <span className="card-label">DAY</span>
+          <span className={`mono text-xs ${day.up ? 'text-[var(--signal-up)]' : 'text-[var(--signal-down)]'}`}>{day.text}</span>
+        </span>
+      )}
+    </>
+  )
+}
 
 const NAV = [
   { label: 'HOME', href: '/' },
@@ -29,6 +62,7 @@ function Clock() {
       const t = now.toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit',
+        second: '2-digit',
         timeZone: config.timezone,
         hour12: false,
       })
@@ -49,7 +83,7 @@ function Clock() {
   return (
     <div className="flex items-center gap-3">
       <span className="card-label">{date}</span>
-      <span className="mono text-sm text-white">{time}</span>
+      <span className="hud text-sm glow">{time}</span>
     </div>
   )
 }
@@ -64,9 +98,9 @@ function Avatar() {
 
   return (
     <div className="
-      w-7 h-7 rounded-full flex items-center justify-center
-      bg-[oklch(0.72_0.18_145/0.2)] border border-[oklch(0.72_0.18_145/0.4)]
-      text-[oklch(0.72_0.18_145)] text-[10px] font-bold mono
+      w-7 h-7 flex items-center justify-center
+      border border-white/40 glow-box
+      text-white text-[10px] hud
     ">
       {initials}
     </div>
@@ -76,16 +110,22 @@ function Avatar() {
 export default function TopRail() {
   const pathname = usePathname()
 
+  // Re-trigger the boot sequence — BootGate listens for this.
+  function reboot() {
+    try { sessionStorage.removeItem('miles-booted') } catch {}
+    window.dispatchEvent(new CustomEvent('miles:reboot'))
+  }
+
   return (
     <header className="
       flex items-center justify-between px-4 h-10 flex-shrink-0
-      border-b border-[oklch(1_0_0/0.06)] bg-[oklch(0.08_0_0/0.95)]
-      backdrop-blur-sm sticky top-0 z-50
+      border-b border-white/10 bg-black
+      sticky top-0 z-50
     ">
       {/* Brand */}
       <div className="flex items-center gap-4 min-w-0">
-        <Link href="/" className="mono text-xs font-semibold text-white whitespace-nowrap hover:text-[oklch(0.72_0.18_145)] transition-colors">
-          MILES OS // V3.1
+        <Link href="/" className="display text-[11px] text-white whitespace-nowrap glow">
+          MILES OS <span className="text-[oklch(0.45_0_0)]">// V3.1</span>
         </Link>
 
         {/* Nav tabs */}
@@ -97,11 +137,11 @@ export default function TopRail() {
                 key={href}
                 href={href}
                 className={`
-                  px-3 py-1 text-[11px] font-semibold tracking-widest rounded-sm
+                  hud px-3 py-1 text-[11px] tracking-[0.18em]
                   transition-colors duration-150
                   ${active
                     ? 'bg-white text-black'
-                    : 'text-[oklch(0.55_0_0)] hover:text-[oklch(0.75_0_0)]'
+                    : 'text-[oklch(0.52_0_0)] hover:text-white hover:glow'
                   }
                 `}
               >
@@ -112,18 +152,26 @@ export default function TopRail() {
         </nav>
       </div>
 
-      {/* Right side: tickers + clock + avatar */}
+      {/* Right side: tickers + reboot + clock + avatar */}
       <div className="flex items-center gap-4">
-        {/* Tickers */}
         <div className="hidden md:flex items-center gap-3">
-          {TICKERS.map(({ symbol, value }) => (
-            <span key={symbol} className="flex items-center gap-1.5">
-              <span className="card-label">{symbol}</span>
-              <span className="mono text-xs text-white">{value}</span>
-            </span>
-          ))}
+          <LiveTicker />
         </div>
 
+        <div className="hidden lg:flex items-center gap-2" aria-hidden>
+          <Barcode seed="toprail" bars={18} height={12} className="opacity-50" />
+          <Serial seed="toprail" groups={[4, 2]} />
+        </div>
+
+        <button
+          onClick={reboot}
+          title="Replay boot sequence"
+          className="hud text-[10px] tracking-[0.18em] text-[oklch(0.45_0_0)] hover:text-white hover:glow transition-colors"
+        >
+          [ REBOOT ]
+        </button>
+
+        <MuteToggle />
         <Clock />
         <Avatar />
       </div>
