@@ -107,6 +107,7 @@ export async function analyzeImage(images: VisionImage[], hint?: string): Promis
 
   const msg = await anthropic.messages.create({
     model: process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-6',
+    output_config: { effort: 'max' },
     max_tokens: 1500,
     system: SYSTEM,
     messages: [{ role: 'user', content }],

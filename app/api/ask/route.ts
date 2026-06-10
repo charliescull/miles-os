@@ -35,6 +35,7 @@ export async function POST(req: NextRequest) {
   // Stream response from Claude
   const stream = anthropic.messages.stream({
     model: process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-6',
+    output_config: { effort: 'max' },
     max_tokens: 1024,
     system: `You are the user's personal assistant with access to their captured notes, tasks, and history. Answer the question using ONLY the context provided. Cite sources by referring to capture IDs in [brackets]. If you don't have enough context, say so clearly.`,
     messages: [{

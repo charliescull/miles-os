@@ -11,6 +11,7 @@ export async function POST(req: NextRequest) {
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
     const msg = await anthropic.messages.create({
       model: process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-6',
+      output_config: { effort: 'max' },
       max_tokens: 128,
       system: 'You are a nutrition estimator. Given a food name and a calorie target, return only a JSON object with keys: protein (grams), carbs (grams), fat (grams). Distribute macros realistically for that food. No explanation, just JSON.',
       messages: [{ role: 'user', content: `Food: "${name}", Calories: ${kcal}` }],

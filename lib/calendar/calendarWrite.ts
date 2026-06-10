@@ -112,6 +112,7 @@ export async function parseEventFromText(text: string): Promise<EventInput | nul
 
   const msg = await anthropic.messages.create({
     model: process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-6',
+    output_config: { effort: 'max' },
     max_tokens: 400,
     system: `You convert a message into a calendar event. Today is ${today} (${nowLocal}), timezone ${tz()}.
 Return ONLY a JSON object:

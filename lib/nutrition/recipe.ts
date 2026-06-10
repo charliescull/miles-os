@@ -37,6 +37,7 @@ export async function analyzeMeal(text: string): Promise<MealAnalysis> {
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
   const msg = await anthropic.messages.create({
     model: process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-6',
+    output_config: { effort: 'max' },
     max_tokens: 600,
     system: SYSTEM,
     messages: [{ role: 'user', content: text }],

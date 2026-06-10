@@ -71,6 +71,7 @@ async function runFinancePipeline(): Promise<Record<string, unknown>> {
 
   const msg = await anthropic.messages.create({
     model: process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-6',
+    output_config: { effort: 'max' },
     max_tokens: 1024,
     system: `You are a financial data extractor. Extract from the spreadsheet dump: net_worth (number), liquid (number), invested (number), liabilities (number), currency (string), as_of (YYYY-MM-DD string), income_mo (number or null), burn_mo (number or null), save_rate (number or null, percent), runway_months (number or null), history (array of {period: string, net_worth, liquid, invested, liabilities, delta} for last 24 months). Avoid double-counting. Use only the most recent row of any time-series. Output only valid JSON, no explanation.`,
     messages: [{ role: 'user', content: dump.join('\n').slice(0, 20000) }],

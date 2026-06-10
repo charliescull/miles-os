@@ -12,6 +12,7 @@ export async function classifyTelegramIntent(text: string): Promise<TgIntent> {
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
     const msg = await anthropic.messages.create({
       model: process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-6',
+      output_config: { effort: 'max' },
       max_tokens: 8,
       system: `Route the message to ONE destination. Reply with ONLY one lowercase word.
 - calendar: scheduling an event/appointment/meeting at a specific date AND time.
