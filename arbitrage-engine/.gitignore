@@ -1,0 +1,31 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+
+# Env / secrets
+.env
+.env.local
+*.env
+
+# Node / Next
+node_modules/
+.next/
+out/
+dist/
+npm-debug.log*
+
+# Vercel
+.vercel/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Scrape artifacts / logs
+*.log
+runs/
+screenshots/

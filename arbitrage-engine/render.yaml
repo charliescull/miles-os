@@ -1,0 +1,29 @@
+# Render blueprint for the scraper. Runs as a CRON JOB doing a single pass per fire
+# (free-tier-safe). Set the secret env vars in the Render dashboard (sync:false keeps
+# them out of git). Bump the schedule frequency only after upgrading the Scrapfly plan.
+services:
+  - type: cron
+    name: arbitrage-scraper
+    runtime: docker
+    dockerfilePath: scraper/Dockerfile
+    dockerContext: scraper
+    plan: starter
+    schedule: "0 13 * * *"            # once daily 13:00 UTC; raise once on paid Scrapfly
+    dockerCommand: python run.py --source govdeals --query "commercial printer,cnc machine" --limit 5
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_MODEL
+        value: claude-sonnet-4-6
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: SCRAPFLY_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ROI_THRESHOLD
+        value: "0.25"
+      - key: MAX_DAYS_TO_LIQUIDATE
+        value: "14"

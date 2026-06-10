@@ -1,0 +1,121 @@
+@import "tailwindcss";
+
+/* ───────────────────────────────────────────────────────────────────────
+   Design tokens mirror MILES OS (app/globals.css) so this dashboard reads as
+   a native module of the same system: oklch dark, ink ramp, accent green,
+   glassy cards, sharp corners, mono numbers. Terminal / liquidation-desk vibe.
+   ─────────────────────────────────────────────────────────────────────── */
+@theme inline {
+  --color-ink-0: oklch(0.08 0 0);
+  --color-ink-1: oklch(0.12 0 0);
+  --color-ink-2: oklch(0.18 0 0);
+  --color-ink-3: oklch(0.28 0 0);
+  --color-ink-4: oklch(0.45 0 0);
+  --color-ink-5: oklch(0.65 0 0);
+  --color-ink-6: oklch(0.85 0 0);
+  --color-ink-7: oklch(0.96 0 0);
+
+  --color-accent: oklch(0.72 0.18 145);
+  --color-accent-dim: oklch(0.55 0.14 145);
+
+  --color-ok: oklch(0.72 0.18 145);
+  --color-warn: oklch(0.82 0.16 85);
+  --color-danger: oklch(0.65 0.22 25);
+  --color-cool: oklch(0.6 0.1 230);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+:root {
+  --background: oklch(0.08 0 0);
+  --foreground: oklch(0.96 0 0);
+  --card-bg: oklch(0.1 0 0 / 0.8);
+  --card-border: oklch(1 0 0 / 0.06);
+  --card-border-hover: oklch(1 0 0 / 0.14);
+}
+
+* { box-sizing: border-box; }
+
+html {
+  background: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  /* faint radial wash + hairline grid for depth, not a flat black */
+  background:
+    radial-gradient(120% 80% at 50% -10%, oklch(0.13 0.02 145 / 0.25), transparent 60%),
+    var(--background);
+  background-attachment: fixed;
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  min-height: 100vh;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: oklch(1 0 0 / 0.1); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: oklch(1 0 0 / 0.2); }
+
+.mono { font-family: var(--font-mono), ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.card-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: oklch(0.55 0 0);
+}
+
+/* opportunity card hover lift */
+.opp-card {
+  transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+.opp-card:hover {
+  border-color: var(--card-border-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px -12px oklch(0 0 0 / 0.6);
+}
+
+/* chips */
+.chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  border-radius: 3px; padding: 2px 7px;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
+  border: 1px solid var(--card-border);
+}
+.chip-ok    { color: oklch(0.78 0.16 145); border-color: oklch(0.72 0.18 145 / 0.35); background: oklch(0.72 0.18 145 / 0.1); }
+.chip-warm  { color: oklch(0.84 0.14 90);  border-color: oklch(0.78 0.16 90 / 0.3);  background: oklch(0.78 0.16 90 / 0.1); }
+.chip-hot   { color: oklch(0.75 0.18 25);  border-color: oklch(0.65 0.22 25 / 0.35); background: oklch(0.65 0.22 25 / 0.12); }
+.chip-cool  { color: oklch(0.72 0.1 230);  border-color: oklch(0.6 0.1 230 / 0.3);   background: oklch(0.6 0.1 230 / 0.1); }
+.chip-muted { color: oklch(0.55 0 0); }
+
+/* live pulse dot */
+@keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+.online-dot { animation: pulse-dot 2s ease-in-out infinite; }
+
+/* scanning shimmer for the live header underline */
+@keyframes scanline { 0% { transform: translateX(-100%); } 100% { transform: translateX(500%); } }
+.scanline { animation: scanline 2.4s ease-in-out infinite; width: 20%; }
+
+/* staggered card reveal on load */
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.rise { animation: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* shimmer skeleton */
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+.skeleton {
+  background: linear-gradient(90deg, oklch(0.14 0 0) 25%, oklch(0.18 0 0) 37%, oklch(0.14 0 0) 63%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}

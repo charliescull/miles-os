@@ -1,0 +1,5 @@
+# OPTIONAL browser engine — only if you want agentic browser navigation (src/proxy.make_browser
+# + src/agent_runtime). Not required for the default Scrapfly + Claude pipeline.
+# Recommended on Python 3.12 (browser-use + Playwright can lag the newest Python).
+-r requirements.txt
+browser-use>=0.7

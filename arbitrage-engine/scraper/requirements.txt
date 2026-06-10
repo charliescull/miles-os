@@ -1,0 +1,15 @@
+# Core scraper deps — Scrapfly fetch + Claude parse path. Installs cleanly on 3.11–3.14.
+anthropic>=0.69             # Claude API (structured extraction via messages.parse)
+supabase>=2.6               # Supabase client (service-role writes)
+pydantic>=2.7              # typed pipeline contracts
+python-dotenv>=1.0         # .env loading
+requests>=2.31             # Scrapfly REST calls
+beautifulsoup4>=4.12       # HTML cleaning before sending to Claude (token savings)
+openai>=1.40               # embeddings for pgvector semantic matching (optional at runtime)
+
+# Dev / test
+pytest>=8.0
+
+# NOTE: the optional browser-use engine lives in requirements-browser.txt. You do NOT
+# need it for the default Scrapfly path. browser-use pulls Playwright + heavy deps and
+# may lag on the newest Python; prefer a 3.12 venv if you opt into it.
