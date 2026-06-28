@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Shell from '@/components/dashboard/Shell'
 import HealthHeart from '@/components/health/HealthHeart'
+import WhoopCard from '@/components/health/WhoopCard'
 import { HatchStrip } from '@/components/hud'
 import { config } from '@/lib/config'
 
@@ -678,17 +679,24 @@ export default function HealthPage() {
 
   return (
     <Shell>
-      <div className="flex flex-col h-[calc(100vh-40px)] bg-black overflow-hidden">
-        {/* Cardiac organ band — the living heart + locked EKG */}
-        <HealthHeart className="flex-none h-[30vh] min-h-[220px]" />
+      {/* Scrollable column: WHOOP is the hero, the heart is a slim accent,
+          the workout log + recipes live beneath (scroll down to reach them). */}
+      <div className="flex flex-col min-h-[calc(100vh-40px)] bg-black overflow-y-auto">
+        {/* Slim cardiac accent — the living heart + locked EKG */}
+        <HealthHeart className="flex-none h-[15vh] min-h-[120px]" />
         <HatchStrip height={6} />
 
-        <div className="flex flex-col lg:flex-row flex-1 min-h-0" style={{ gap: '1px', background: 'oklch(1 0 0 / 0.06)' }}>
+        {/* WHOOP hero — live recovery / sleep / strain */}
+        <WhoopCard className="flex-none" />
+        <HatchStrip height={6} />
+
+        {/* Workout log + recipes — beneath the fold */}
+        <div
+          className="flex flex-col lg:flex-row flex-1"
+          style={{ gap: '1px', background: 'oklch(1 0 0 / 0.06)', minHeight: '72vh' }}
+        >
           {/* Left column — 75% on desktop, full-width stacked on small */}
-          <div
-            className="flex flex-col bg-black overflow-hidden lg:[flex:0_0_75%]"
-            style={{ gap: '1px' }}
-          >
+          <div className="flex flex-col bg-black lg:[flex:0_0_75%]" style={{ gap: '1px' }}>
             {/* 09 // WORKOUT LOG — fills remaining space */}
             <div className="flex flex-col" style={{ flex: '1 1 0', minHeight: 0 }}>
               <WorkoutLogModule />

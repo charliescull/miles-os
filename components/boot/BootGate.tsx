@@ -13,7 +13,6 @@ const BootSequence = dynamic(() => import('./BootSequence'), { ssr: false })
  */
 export default function BootGate({ children }: { children: ReactNode }) {
   const [booting, setBooting] = useState(false)
-  const [withSound, setWithSound] = useState(false)
 
   useEffect(() => {
     try {
@@ -21,7 +20,7 @@ export default function BootGate({ children }: { children: ReactNode }) {
     } catch {
       setBooting(true)
     }
-    const onReboot = () => { setWithSound(true); setBooting(true) }
+    const onReboot = () => { setBooting(true) }
     window.addEventListener('miles:reboot', onReboot)
     return () => window.removeEventListener('miles:reboot', onReboot)
   }, [])
@@ -34,7 +33,7 @@ export default function BootGate({ children }: { children: ReactNode }) {
   return (
     <>
       {children}
-      {booting && <BootSequence withSound={withSound} onDone={done} />}
+      {booting && <BootSequence onDone={done} />}
     </>
   )
 }

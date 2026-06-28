@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { config } from '@/lib/config'
 import { Barcode, Serial } from '@/components/hud'
-import MuteToggle from './MuteToggle'
 
 // Live system telemetry — real numbers from the snapshot, not wallpaper.
 function LiveTicker() {
@@ -171,7 +170,6 @@ export default function TopRail() {
           [ REBOOT ]
         </button>
 
-        <MuteToggle />
         <Clock />
         <Avatar />
       </div>

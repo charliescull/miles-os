@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { config } from '@/lib/config'
 import { Odometer, Barcode, Serial, seededRandom, useReducedMotion } from '@/components/hud'
-import { playBootSwell, playTick, playChime } from '@/lib/sound'
 
 /**
  * THE BOOT SEQUENCE — classified hardware waking up.
@@ -166,10 +165,8 @@ function Strokes({ assembling }: { assembling: boolean }) {
 }
 
 export default function BootSequence({
-  withSound = false,
   onDone,
 }: {
-  withSound?: boolean
   onDone: () => void
 }) {
   const reduced = useReducedMotion()
@@ -191,19 +188,14 @@ export default function BootSequence({
       const t = setTimeout(finish, 900)
       return () => clearTimeout(t)
     }
-    if (withSound) playBootSwell()
     const timers = [
       setTimeout(() => setPhase('metrics'), T_METRICS),
-      setTimeout(() => { setPhase('online'); if (withSound) playChime() }, T_ONLINE),
+      setTimeout(() => setPhase('online'), T_ONLINE),
       setTimeout(() => setPhase('assemble'), T_ASSEMBLE),
       setTimeout(finish, T_DONE),
     ]
-    // cascade ticks
-    const tickTimers = withSound
-      ? CASCADE_LINES.map((_, i) => setTimeout(() => playTick(1 + (i % 5) * 0.06), i * 130))
-      : []
-    return () => { [...timers, ...tickTimers].forEach(clearTimeout) }
-  }, [reduced, withSound, finish])
+    return () => { timers.forEach(clearTimeout) }
+  }, [reduced, finish])
 
   // Skip: any click or ESC
   useEffect(() => {

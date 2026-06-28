@@ -2,8 +2,6 @@ import Shell from '@/components/dashboard/Shell'
 import BootGate from '@/components/boot/BootGate'
 import HomeBrain from '@/components/dashboard/HomeBrain'
 import OperatorCard from '@/components/dashboard/OperatorCard'
-import FinancePulseCard from '@/components/dashboard/FinancePulseCard'
-import KeyBlockersCard from '@/components/dashboard/KeyBlockersCard'
 import SessionCard from '@/components/dashboard/SessionCard'
 import HabitsCard from '@/components/dashboard/HabitsCard'
 import CalendarCard from '@/components/dashboard/CalendarCard'
@@ -22,16 +20,14 @@ export default function HomePage() {
             background: 'oklch(1 0 0 / 0.06)',
           }}
         >
-          {/* Left column — operator + money + blockers */}
+          {/* Left column — operator */}
           <div className="flex flex-col overflow-y-auto bg-black" style={{ gap: '1px' }}>
             <OperatorCard />
-            <FinancePulseCard />
-            <KeyBlockersCard />
           </div>
 
           {/* Centre column — the living organ, HUD furniture beneath */}
           <div className="flex flex-col overflow-y-auto bg-black" style={{ gap: '1px' }}>
-            <HomeBrain className="flex-none h-[44vh] min-h-[300px]" />
+            <HomeBrain className="flex-none h-[26vh] min-h-[200px]" />
             <HatchStrip height={6} />
             <SessionCard />
             <HabitsCard />

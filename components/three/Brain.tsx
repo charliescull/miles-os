@@ -4,6 +4,7 @@ import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { seededRandom } from '@/components/hud'
+import { softSprite } from './sprite'
 
 /**
  * HOME organ: a procedural neural brain.
@@ -14,7 +15,7 @@ import { seededRandom } from '@/components/hud'
  * `liveliness` (0..1) drives firing density + speed; wire it to real activity.
  */
 
-const POINT_COUNT = 2600
+const POINT_COUNT = 4400
 const EDGE_DIST = 0.21
 const MAX_EDGES_PER_POINT = 3
 
@@ -137,6 +138,7 @@ export default function Brain({
   paused?: boolean
 }) {
   const graph = useMemo(() => buildBrain('miles-brain-v1'), [])
+  const sprite = useMemo(() => softSprite(), [])
   const groupRef = useRef<THREE.Group>(null)
   const pulseGeomRef = useRef<THREE.BufferGeometry>(null)
   const pointsMatRef = useRef<THREE.PointsMaterial>(null)
@@ -212,45 +214,33 @@ export default function Brain({
     // initial yaw gives the 3/4 profile — the most brain-like first frame
     // (also the still frame under reduced motion)
     <group ref={groupRef} rotation={[0.12, -0.55, 0]} scale={1.18}>
-      {/* cortex point cloud */}
+      {/* cortex: dense soft-sprite cloud — reads as fleshy tissue, not dots */}
       <points>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" args={[graph.positions, 3]} />
         </bufferGeometry>
         <pointsMaterial
           ref={pointsMatRef}
-          color="#ffffff"
-          size={0.013}
+          color="#f3eef0"
+          map={sprite}
+          size={0.05}
           sizeAttenuation
           transparent
-          opacity={0.38}
+          opacity={0.4}
           depthWrite={false}
           blending={THREE.AdditiveBlending}
         />
       </points>
 
-      {/* synapse hairlines */}
-      <lineSegments>
-        <bufferGeometry>
-          <bufferAttribute attach="attributes-position" args={[graph.linePositions, 3]} />
-        </bufferGeometry>
-        <lineBasicMaterial
-          color="#ffffff"
-          transparent
-          opacity={0.06}
-          depthWrite={false}
-          blending={THREE.AdditiveBlending}
-        />
-      </lineSegments>
-
-      {/* firing pulses — bright, bloom catches these */}
+      {/* firing pulses — bright soft blooms walking the synapse graph */}
       <points>
         <bufferGeometry ref={pulseGeomRef}>
           <bufferAttribute attach="attributes-position" args={[pulsePositions, 3]} />
         </bufferGeometry>
         <pointsMaterial
           color="#ffffff"
-          size={0.05}
+          map={sprite}
+          size={0.13}
           sizeAttenuation
           transparent
           opacity={1}

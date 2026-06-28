@@ -4,6 +4,7 @@ import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { beatPhase, beatEnvelope } from './rhythm'
+import { softSprite } from './sprite'
 
 /**
  * HEALTH organ: a procedural beating heart.
@@ -13,8 +14,8 @@ import { beatPhase, beatEnvelope } from './rhythm'
  * the EKG overlay stays phase-locked.
  */
 
-const NT = 60 // points around the silhouette
-const NV = 18 // depth layers
+const NT = 120 // points around the silhouette
+const NV = 40 // depth layers
 
 // Classic 2D heart curve, centered + normalized to ~unit radius.
 function heartXY(t: number): [number, number] {
@@ -26,7 +27,6 @@ function heartXY(t: number): [number, number] {
 
 interface HeartGeo {
   positions: Float32Array
-  linePositions: Float32Array
 }
 
 function buildHeart(): HeartGeo {
@@ -42,27 +42,10 @@ function buildHeart(): HeartGeo {
       grid.push(new THREE.Vector3(hx * f, hy * f, z))
     }
   }
-  const idx = (vi: number, ti: number) => vi * NT + (ti % NT)
 
   const positions = new Float32Array(grid.length * 3)
   grid.forEach((p, i) => p.toArray(positions, i * 3))
-
-  const lines: number[] = []
-  // rings (around each depth layer)
-  for (let vi = 0; vi < NV; vi++) {
-    for (let ti = 0; ti < NT; ti++) {
-      const a = grid[idx(vi, ti)], b = grid[idx(vi, ti + 1)]
-      lines.push(a.x, a.y, a.z, b.x, b.y, b.z)
-    }
-  }
-  // columns (through depth) — every other point to keep the mesh airy
-  for (let ti = 0; ti < NT; ti += 2) {
-    for (let vi = 0; vi < NV - 1; vi++) {
-      const a = grid[idx(vi, ti)], b = grid[idx(vi + 1, ti)]
-      lines.push(a.x, a.y, a.z, b.x, b.y, b.z)
-    }
-  }
-  return { positions, linePositions: new Float32Array(lines) }
+  return { positions }
 }
 
 export default function Heart({
@@ -73,6 +56,7 @@ export default function Heart({
   paused?: boolean
 }) {
   const geo = useMemo(() => buildHeart(), [])
+  const sprite = useMemo(() => softSprite(), [])
   const groupRef = useRef<THREE.Group>(null)
   const pointsMatRef = useRef<THREE.PointsMaterial>(null)
 
@@ -98,8 +82,9 @@ export default function Heart({
         </bufferGeometry>
         <pointsMaterial
           ref={pointsMatRef}
-          color="#ffffff"
-          size={0.02}
+          color="#ffd7d7"
+          map={sprite}
+          size={0.06}
           sizeAttenuation
           transparent
           opacity={0.4}
@@ -107,18 +92,6 @@ export default function Heart({
           blending={THREE.AdditiveBlending}
         />
       </points>
-      <lineSegments>
-        <bufferGeometry>
-          <bufferAttribute attach="attributes-position" args={[geo.linePositions, 3]} />
-        </bufferGeometry>
-        <lineBasicMaterial
-          color="#ffffff"
-          transparent
-          opacity={0.08}
-          depthWrite={false}
-          blending={THREE.AdditiveBlending}
-        />
-      </lineSegments>
     </group>
   )
 }

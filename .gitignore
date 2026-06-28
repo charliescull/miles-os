@@ -44,3 +44,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .gstack/
+
+# Local QA artifacts
+.playwright-mcp/
+/*-before.png
+/*-after.png
+/health-whoop.png

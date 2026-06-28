@@ -1,6 +1,5 @@
 import { ReactNode } from 'react'
 import TopRail from './TopRail'
-import SoundController from './SoundController'
 import TabMorph from './TabMorph'
 
 interface ShellProps {
@@ -14,7 +13,6 @@ export default function Shell({ children }: ShellProps) {
       <main className="flex-1 min-h-0">
         <TabMorph>{children}</TabMorph>
       </main>
-      <SoundController />
     </div>
   )
 }

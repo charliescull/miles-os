@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import HeartStage from '@/components/three/HeartStage'
-import { setAmbientHeartbeatBpm } from '@/lib/sound'
 
 /**
  * HEALTH organ wrapper. Resting BPM eases down with training consistency
@@ -23,7 +22,6 @@ export default function HealthHeart({ className = '' }: { className?: string }) 
         // 0 active → 72bpm, 8+ active → 56bpm
         const next = Math.round(72 - Math.min(8, active) * 2)
         setBpm(next)
-        setAmbientHeartbeatBpm(next) // sync the HEALTH ambient pulse to the beat
       })
       .catch(() => {})
     return () => { cancelled = true }
