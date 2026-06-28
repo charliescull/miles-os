@@ -18,15 +18,14 @@ export const WHOOP_SCOPES =
 export function whoopEnv() {
   const clientId = process.env.WHOOP_CLIENT_ID
   const clientSecret = process.env.WHOOP_CLIENT_SECRET
-  const redirectUri = process.env.WHOOP_REDIRECT_URI
-  return { clientId, clientSecret, redirectUri }
+  return { clientId, clientSecret }
 }
 
-export function authorizeUrl(state: string): string {
-  const { clientId, redirectUri } = whoopEnv()
+export function authorizeUrl(state: string, redirectUri: string): string {
+  const { clientId } = whoopEnv()
   const p = new URLSearchParams({
     client_id: clientId ?? '',
-    redirect_uri: redirectUri ?? '',
+    redirect_uri: redirectUri,
     response_type: 'code',
     scope: WHOOP_SCOPES,
     state,
@@ -80,10 +79,11 @@ function tokensFromResponse(json: Record<string, unknown>, prevRefresh: string |
   }
 }
 
-/** Exchange an authorization code for tokens and persist them. */
-export async function exchangeCode(code: string): Promise<StoredTokens> {
-  const { clientId, clientSecret, redirectUri } = whoopEnv()
-  if (!clientId || !clientSecret || !redirectUri) throw new Error('WHOOP env not configured')
+/** Exchange an authorization code for tokens and persist them. The redirect_uri
+ *  must be byte-identical to the one used in the authorize step. */
+export async function exchangeCode(code: string, redirectUri: string): Promise<StoredTokens> {
+  const { clientId, clientSecret } = whoopEnv()
+  if (!clientId || !clientSecret) throw new Error('WHOOP env not configured')
   const body = new URLSearchParams({
     grant_type: 'authorization_code',
     code,

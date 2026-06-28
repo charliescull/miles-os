@@ -25,7 +25,9 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    await exchangeCode(code)
+    // Must byte-match the redirect_uri used in /connect (derived the same way).
+    const redirectUri = new URL('/api/whoop/callback', req.url).toString()
+    await exchangeCode(code, redirectUri)
     home.searchParams.set('whoop', 'connected')
   } catch {
     home.searchParams.set('whoop', 'error')
