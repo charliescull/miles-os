@@ -682,8 +682,8 @@ export default function HealthPage() {
       {/* Scrollable column: WHOOP is the hero, the heart is a slim accent,
           the workout log + recipes live beneath (scroll down to reach them). */}
       <div className="flex flex-col min-h-[calc(100vh-40px)] bg-black overflow-y-auto">
-        {/* Slim cardiac accent — the living heart + locked EKG */}
-        <HealthHeart className="flex-none h-[15vh] min-h-[120px]" />
+        {/* Slim cardiac accent — the living heart + locked EKG (kept small) */}
+        <HealthHeart className="flex-none h-[11vh] min-h-[92px]" />
         <HatchStrip height={6} />
 
         {/* WHOOP hero — live recovery / sleep / strain */}
@@ -693,7 +693,7 @@ export default function HealthPage() {
         {/* Workout log + recipes — beneath the fold */}
         <div
           className="flex flex-col lg:flex-row flex-1"
-          style={{ gap: '1px', background: 'oklch(1 0 0 / 0.06)', minHeight: '72vh' }}
+          style={{ gap: '1px', background: 'oklch(0.82 0.13 225 / 0.10)', minHeight: '72vh' }}
         >
           {/* Left column — 75% on desktop, full-width stacked on small */}
           <div className="flex flex-col bg-black lg:[flex:0_0_75%]" style={{ gap: '1px' }}>

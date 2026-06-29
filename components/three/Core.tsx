@@ -7,14 +7,14 @@ import { seededRandom } from '@/components/hud'
 
 /**
  * FINANCE organ: a net-worth core.
- * Dense white point sphere that breathes; on the systolic beat it flashes a
+ * Dense cyan point sphere that breathes; on the systolic beat it flashes a
  * signal tint by daily P/L sign (green up / red down) — only the *accent*
- * flashes, the core stays white. Ticker nodes orbit, sized by position weight.
+ * flashes, the core stays cyan. Ticker nodes orbit, sized by position weight.
  */
 
 const UP = new THREE.Color('#3fe08a')
 const DOWN = new THREE.Color('#f0533f')
-const WHITE = new THREE.Color('#ffffff')
+const WHITE = new THREE.Color('#7fc4ff') // resting core tint — Jarvis cyan
 
 interface Ticker { weight: number }
 
@@ -101,7 +101,7 @@ export default function Core({
         </bufferGeometry>
         <pointsMaterial
           ref={coreMatRef}
-          color="#ffffff"
+          color="#7fc4ff"
           size={0.022}
           sizeAttenuation
           transparent
@@ -134,7 +134,7 @@ export default function Core({
               vec2 c = gl_PointCoord - vec2(0.5);
               float d = length(c);
               if (d > 0.5) discard;
-              gl_FragColor = vec4(1.0, 1.0, 1.0, smoothstep(0.5, 0.0, d));
+              gl_FragColor = vec4(0.55, 0.78, 1.0, smoothstep(0.5, 0.0, d));
             }
           `}
         />

@@ -120,7 +120,7 @@ export default function Constellation({
               float d = length(c);
               if (d > 0.5) discard;
               float a = smoothstep(0.5, 0.0, d) * vAlpha;
-              gl_FragColor = vec4(1.0, 1.0, 1.0, a);
+              gl_FragColor = vec4(0.58, 0.80, 1.0, a);
             }
           `}
         />
@@ -129,7 +129,7 @@ export default function Constellation({
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" args={[geo.linePositions, 3]} />
         </bufferGeometry>
-        <lineBasicMaterial color="#ffffff" transparent opacity={0.07} depthWrite={false} blending={THREE.AdditiveBlending} />
+        <lineBasicMaterial color="#3f9bff" transparent opacity={0.08} depthWrite={false} blending={THREE.AdditiveBlending} />
       </lineSegments>
     </group>
   )

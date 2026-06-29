@@ -9,9 +9,9 @@ import { softSprite } from './sprite'
 /**
  * HEALTH organ: a procedural beating heart.
  * A puffy heart silhouette lofted through depth into a rounded surface, drawn
- * as a white wireframe (rings + columns) — same point/line + bloom technique as
- * the brain. Beats on a real cardiac rhythm via the shared `rhythm` module so
- * the EKG overlay stays phase-locked.
+ * as a soft-sprite point volume — same point + bloom technique as the brain.
+ * Beats on a real cardiac rhythm via the shared `rhythm` module so the EKG
+ * overlay stays phase-locked. Kept small (BASE_SCALE) as a slim HEALTH accent.
  */
 
 const NT = 120 // points around the silhouette
@@ -60,34 +60,37 @@ export default function Heart({
   const groupRef = useRef<THREE.Group>(null)
   const pointsMatRef = useRef<THREE.PointsMaterial>(null)
 
+  // BASE_SCALE keeps the organ small + tidy on the slim HEALTH accent strip.
+  const BASE_SCALE = 0.8
+
   useFrame((state) => {
     if (paused || !groupRef.current) return
     const t = performance.now() / 1000
     const phase = beatPhase(t, bpm)
     const s = 1 + beatEnvelope(phase)
-    groupRef.current.scale.setScalar(s * 1.15)
+    groupRef.current.scale.setScalar(s * BASE_SCALE)
     // very slow drift so it's never dead-still, but the beat is the motion
-    groupRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.12) * 0.18
+    groupRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.12) * 0.16
     if (pointsMatRef.current) {
       // brighten on the systolic thump so bloom catches the beat
-      pointsMatRef.current.opacity = 0.38 + beatEnvelope(phase) * 4.5
+      pointsMatRef.current.opacity = 0.34 + beatEnvelope(phase) * 4.2
     }
   })
 
   return (
-    <group ref={groupRef} rotation={[0.1, 0, 0]} scale={1.15}>
+    <group ref={groupRef} rotation={[0.1, 0, 0]} scale={BASE_SCALE}>
       <points>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" args={[geo.positions, 3]} />
         </bufferGeometry>
         <pointsMaterial
           ref={pointsMatRef}
-          color="#ffd7d7"
+          color="#ff3b4e"
           map={sprite}
-          size={0.06}
+          size={0.04}
           sizeAttenuation
           transparent
-          opacity={0.4}
+          opacity={0.36}
           depthWrite={false}
           blending={THREE.AdditiveBlending}
         />

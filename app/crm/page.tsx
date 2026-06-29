@@ -321,7 +321,7 @@ export default function CrmPage() {
         {/* Kanban */}
         {subTab !== 'people' && view === 'kanban' && (
           <div className="flex-1 overflow-x-auto">
-            <div className="grid grid-cols-4 h-full" style={{ gap: '1px', background: 'oklch(1 0 0 / 0.05)', minWidth: '900px' }}>
+            <div className="grid grid-cols-4 h-full" style={{ gap: '1px', background: 'oklch(0.82 0.13 225 / 0.09)', minWidth: '900px' }}>
               {URGENCY_COLS.map(({ key, label, color }) => {
                 const col = getCol(key)
                 return (

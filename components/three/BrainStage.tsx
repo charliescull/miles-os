@@ -41,8 +41,8 @@ export default function BrainStage({
 
       {/* hairline crosshair through the specimen */}
       <div aria-hidden className="absolute inset-0 pointer-events-none">
-        <div className="absolute left-1/2 top-0 bottom-0 w-px bg-white/[0.04]" />
-        <div className="absolute top-1/2 left-0 right-0 h-px bg-white/[0.04]" />
+        <div className="absolute left-1/2 top-0 bottom-0 w-px bg-[oklch(0.82_0.13_225/0.07)]" />
+        <div className="absolute top-1/2 left-0 right-0 h-px bg-[oklch(0.82_0.13_225/0.07)]" />
       </div>
     </div>
   )

@@ -8,9 +8,9 @@ import { softSprite } from './sprite'
 
 /**
  * HOME organ: a procedural neural brain.
- * Point-cloud cortex with sulci wrinkles, hairline synapse edges, and light
- * pulses that walk the edge graph (neurons firing). All geometry is generated
- * once from a fixed seed — no assets, fully deterministic.
+ * Red point-cloud cortex with sulci wrinkles, a faint blue synapse lattice, and
+ * bright blue light pulses that walk the edge graph (neurons firing). All
+ * geometry is generated once from a fixed seed — no assets, fully deterministic.
  *
  * `liveliness` (0..1) drives firing density + speed; wire it to real activity.
  */
@@ -143,7 +143,7 @@ export default function Brain({
   const pulseGeomRef = useRef<THREE.BufferGeometry>(null)
   const pointsMatRef = useRef<THREE.PointsMaterial>(null)
 
-  const pulseCount = Math.max(4, Math.round(4 + liveliness * 14))
+  const pulseCount = Math.max(8, Math.round(8 + liveliness * 18))
   const pulses = useRef<Pulse[]>([])
   const pulsePositions = useMemo(() => new Float32Array(pulseCount * 3), [pulseCount])
   const rndRef = useRef(seededRandom('miles-pulses'))
@@ -169,15 +169,15 @@ export default function Brain({
     if (paused) return
     const t = state.clock.elapsedTime
 
-    // DRIFT: perpetual slow rotation with a barely-there nod
+    // DRIFT: a clear, steady spin (the brain visibly rotates) + a slow nod
     if (groupRef.current) {
-      groupRef.current.rotation.y += delta * (0.06 + liveliness * 0.03)
-      groupRef.current.rotation.x = Math.sin(t * 0.1) * 0.05
+      groupRef.current.rotation.y += delta * (0.20 + liveliness * 0.06)
+      groupRef.current.rotation.x = Math.sin(t * 0.12) * 0.06
     }
 
-    // ambient luminance breathing — stays under the bloom threshold
+    // ambient luminance breathing — keeps the red tissue under the bloom threshold
     if (pointsMatRef.current) {
-      pointsMatRef.current.opacity = 0.34 + Math.sin(t * 0.5) * 0.08
+      pointsMatRef.current.opacity = 0.30 + Math.sin(t * 0.5) * 0.07
     }
 
     // neurons firing: pulses walk the synapse graph
@@ -214,33 +214,48 @@ export default function Brain({
     // initial yaw gives the 3/4 profile — the most brain-like first frame
     // (also the still frame under reduced motion)
     <group ref={groupRef} rotation={[0.12, -0.55, 0]} scale={1.18}>
-      {/* cortex: dense soft-sprite cloud — reads as fleshy tissue, not dots */}
+      {/* cortex: dense soft-sprite cloud, tinted RED — reads as fleshy tissue */}
       <points>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" args={[graph.positions, 3]} />
         </bufferGeometry>
         <pointsMaterial
           ref={pointsMatRef}
-          color="#f3eef0"
+          color="#ff3a2f"
           map={sprite}
-          size={0.05}
+          size={0.052}
           sizeAttenuation
           transparent
-          opacity={0.4}
+          opacity={0.32}
           depthWrite={false}
           blending={THREE.AdditiveBlending}
         />
       </points>
 
-      {/* firing pulses — bright soft blooms walking the synapse graph */}
+      {/* synapse lattice — faint blue connective web so the firing reads as a
+          neural network, not floating dots. Kept under the bloom threshold. */}
+      <lineSegments>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" args={[graph.linePositions, 3]} />
+        </bufferGeometry>
+        <lineBasicMaterial
+          color="#2f8fff"
+          transparent
+          opacity={0.06}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+        />
+      </lineSegments>
+
+      {/* firing neurons — bright BLUE blooms walking the synapse graph */}
       <points>
         <bufferGeometry ref={pulseGeomRef}>
           <bufferAttribute attach="attributes-position" args={[pulsePositions, 3]} />
         </bufferGeometry>
         <pointsMaterial
-          color="#ffffff"
+          color="#5cc6ff"
           map={sprite}
-          size={0.13}
+          size={0.17}
           sizeAttenuation
           transparent
           opacity={1}

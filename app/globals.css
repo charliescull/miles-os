@@ -18,12 +18,20 @@
   --color-ink-6: oklch(0.88 0 0);         /* primary text */
   --color-ink-7: oklch(1 0 0);            /* lit white */
 
-  /* State signals ONLY — never decoration */
+  /* State signals — green/red still mean up/down */
   --color-signal-up: oklch(0.78 0.17 150);
   --color-signal-down: oklch(0.64 0.21 27);
-  --color-accent: oklch(1 0 0);           /* legacy accent now maps to lit white */
-  --color-accent-dim: oklch(0.70 0 0);
-  --color-accent-glow: oklch(1 0 0 / 0.12);
+
+  /* JARVIS accent — electric cyan/blue is the new chrome accent + Stark red */
+  --color-jarvis: oklch(0.82 0.13 225);          /* primary HUD cyan */
+  --color-jarvis-bright: oklch(0.90 0.14 220);   /* lit cyan */
+  --color-jarvis-dim: oklch(0.62 0.10 230);      /* muted cyan */
+  --color-jarvis-deep: oklch(0.48 0.13 250);     /* deep blue */
+  --color-stark-red: oklch(0.64 0.21 27);        /* Stark accent red */
+
+  --color-accent: oklch(0.82 0.13 225);          /* legacy accent now maps to cyan */
+  --color-accent-dim: oklch(0.62 0.10 230);
+  --color-accent-glow: oklch(0.82 0.13 225 / 0.16);
   --color-ok: oklch(0.78 0.17 150);
   --color-warn: oklch(0.88 0 0);          /* "warm" collapses to white in B&W 2.0 */
   --color-danger: oklch(0.64 0.21 27);
@@ -39,26 +47,38 @@
   --background: oklch(0 0 0);
   --foreground: oklch(0.88 0 0);
   --card-bg: oklch(0.04 0 0);
-  --card-border: oklch(1 0 0 / 0.10);
-  --card-border-hover: oklch(1 0 0 / 0.22);
+  /* panel edges carry a faint cyan charge — the Jarvis tint at rest */
+  --card-border: oklch(0.82 0.13 225 / 0.14);
+  --card-border-hover: oklch(0.85 0.13 222 / 0.40);
 
   /* Signals (raw, for non-Tailwind contexts) */
   --signal-up: oklch(0.78 0.17 150);
   --signal-down: oklch(0.64 0.21 27);
 
-  /* Bloom — the signature texture. White reads as LIT, never blurry:
-     first shadow is tight (keeps the glyph crisp), outer halos are wide+faint. */
+  /* JARVIS accent (raw) */
+  --jarvis: oklch(0.82 0.13 225);
+  --jarvis-bright: oklch(0.90 0.14 220);
+  --jarvis-dim: oklch(0.62 0.10 230);
+  --jarvis-deep: oklch(0.48 0.13 250);
+  --stark-red: oklch(0.64 0.21 27);
+
+  /* Bloom — glyph core stays crisp white; the aura is now electric cyan.
+     first shadow is tight (keeps text legible), outer halos are wide cyan. */
   --bloom-text:
     0 0 1px oklch(1 0 0 / 0.9),
-    0 0 8px oklch(1 0 0 / 0.35),
-    0 0 24px oklch(1 0 0 / 0.12);
+    0 0 7px oklch(0.85 0.13 222 / 0.45),
+    0 0 22px oklch(0.82 0.13 225 / 0.18);
   --bloom-text-hot:
     0 0 1px oklch(1 0 0),
-    0 0 10px oklch(1 0 0 / 0.55),
-    0 0 32px oklch(1 0 0 / 0.20);
+    0 0 10px oklch(0.88 0.14 220 / 0.60),
+    0 0 30px oklch(0.82 0.13 225 / 0.28);
   --bloom-box:
-    0 0 6px oklch(1 0 0 / 0.18),
-    inset 0 0 12px oklch(1 0 0 / 0.04);
+    0 0 6px oklch(0.82 0.13 225 / 0.22),
+    inset 0 0 12px oklch(0.82 0.13 225 / 0.05);
+  --bloom-cyan:
+    0 0 1px oklch(0.90 0.14 220),
+    0 0 9px oklch(0.85 0.13 222 / 0.55),
+    0 0 26px oklch(0.82 0.13 225 / 0.25);
   --bloom-up:
     0 0 1px oklch(0.78 0.17 150 / 0.9),
     0 0 10px oklch(0.78 0.17 150 / 0.40);
@@ -86,6 +106,24 @@ body {
   min-height: 100vh;
 }
 
+/* JARVIS field: faint cyan core glow + a barely-there blueprint grid, added
+   as light ON TOP of the black panels (screen blend) so it shows through the
+   opaque page backgrounds. Kept extremely subtle so text stays crisp. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  background:
+    radial-gradient(120% 85% at 50% -5%, oklch(0.55 0.13 232 / 0.12) 0%, transparent 55%),
+    radial-gradient(110% 90% at 50% 115%, oklch(0.45 0.13 255 / 0.10) 0%, transparent 60%),
+    linear-gradient(oklch(0.82 0.13 225 / 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(0.82 0.13 225 / 0.022) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 48px 48px, 48px 48px;
+}
+
 /* CRT field: scanlines + drifting grain over everything, beneath nothing.
    Subtle enough to vanish when you look straight at it. */
 body::after {
@@ -108,10 +146,10 @@ body::after {
 /* Scrollbar */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: oklch(1 0 0 / 0.14); }
-::-webkit-scrollbar-thumb:hover { background: oklch(1 0 0 / 0.3); }
+::-webkit-scrollbar-thumb { background: oklch(0.82 0.13 225 / 0.30); }
+::-webkit-scrollbar-thumb:hover { background: oklch(0.85 0.13 222 / 0.55); }
 
-::selection { background: oklch(1 0 0); color: oklch(0 0 0); }
+::selection { background: oklch(0.85 0.13 222); color: oklch(0 0 0); }
 
 /* ------------------------------------------------------------
    Typography roles
@@ -128,6 +166,11 @@ body::after {
 .glow-up   { text-shadow: var(--bloom-up); color: var(--signal-up); }
 .glow-down { text-shadow: var(--bloom-down); color: var(--signal-down); }
 .glow-box  { box-shadow: var(--bloom-box); }
+/* Jarvis cyan emphasis — for HUD chrome, key accents, and live telemetry */
+.glow-cyan { text-shadow: var(--bloom-cyan); color: var(--jarvis-bright); }
+.text-jarvis { color: var(--jarvis); }
+.border-jarvis { border-color: oklch(0.82 0.13 225 / 0.40); }
+.glow-box-cyan { box-shadow: 0 0 8px oklch(0.82 0.13 225 / 0.30), inset 0 0 14px oklch(0.82 0.13 225 / 0.06); }
 
 /* ------------------------------------------------------------
    Surfaces (legacy .card kept so untouched pages inherit the skin)
@@ -198,6 +241,33 @@ body::after {
 
 @keyframes drift-rotate { to { transform: rotate(360deg); } }
 .drift-rotate { animation: drift-rotate var(--drift-period) linear infinite; }
+@keyframes drift-rotate-rev { to { transform: rotate(-360deg); } }
+.drift-rotate-rev { animation: drift-rotate-rev var(--drift-period) linear infinite; }
+
+/* JARVIS boot — arc reactor pulse, radial sweep, vertical telemetry scan */
+.spin-slow { animation: drift-rotate 9s linear infinite; }
+.spin-slow-rev { animation: drift-rotate-rev 14s linear infinite; }
+@keyframes arc-pulse {
+  0%, 100% { opacity: 0.55; transform: scale(0.985); }
+  50% { opacity: 1; transform: scale(1.015); }
+}
+.arc-pulse { animation: arc-pulse 3.2s ease-in-out infinite; }
+@keyframes sweep-sw {
+  to { transform: rotate(360deg); }
+}
+.sweep-sw { animation: sweep-sw 3.6s linear infinite; transform-origin: center; }
+@keyframes scan-vert {
+  0% { transform: translateY(-120%); opacity: 0; }
+  12% { opacity: 1; }
+  88% { opacity: 1; }
+  100% { transform: translateY(120%); opacity: 0; }
+}
+.scan-vert { animation: scan-vert 2.6s ease-in-out infinite; }
+@keyframes bar-jitter {
+  0%, 100% { transform: scaleY(0.35); }
+  50% { transform: scaleY(1); }
+}
+.bar-jitter { animation: bar-jitter 1.1s ease-in-out infinite; transform-origin: bottom; }
 
 @keyframes drift-breathe {    /* ambient luminance breathing */
   0%, 100% { opacity: 0.55; }
@@ -243,8 +313,8 @@ body::after {
   height: 2px;
   z-index: 40;
   pointer-events: none;
-  background: linear-gradient(to right, transparent, oklch(1 0 0 / 0.5), transparent);
-  box-shadow: 0 0 12px oklch(1 0 0 / 0.4);
+  background: linear-gradient(to right, transparent, oklch(0.85 0.13 222 / 0.6), transparent);
+  box-shadow: 0 0 12px oklch(0.82 0.13 225 / 0.5);
   animation: tab-scan 420ms ease-out both;
 }
 
@@ -257,6 +327,8 @@ body::after {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-  .online-dot, .drift-rotate, .drift-breathe { animation: none !important; }
+  .online-dot, .drift-rotate, .drift-rotate-rev, .drift-breathe,
+  .spin-slow, .spin-slow-rev, .arc-pulse, .sweep-sw, .scan-vert, .bar-jitter { animation: none !important; }
   body::after { display: none; }
+  body::before { background: radial-gradient(120% 85% at 50% -5%, oklch(0.5 0.12 232 / 0.08) 0%, transparent 55%); }
 }

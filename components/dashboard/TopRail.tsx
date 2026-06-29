@@ -98,8 +98,8 @@ function Avatar() {
   return (
     <div className="
       w-7 h-7 flex items-center justify-center
-      border border-white/40 glow-box
-      text-white text-[10px] hud
+      border border-[oklch(0.82_0.13_225/0.55)] glow-box-cyan
+      text-[var(--jarvis-bright)] text-[10px] hud
     ">
       {initials}
     </div>
@@ -118,7 +118,7 @@ export default function TopRail() {
   return (
     <header className="
       flex items-center justify-between px-4 h-10 flex-shrink-0
-      border-b border-white/10 bg-black
+      border-b border-[oklch(0.82_0.13_225/0.22)] bg-black
       sticky top-0 z-50
     ">
       {/* Brand */}
@@ -139,8 +139,8 @@ export default function TopRail() {
                   hud px-3 py-1 text-[11px] tracking-[0.18em]
                   transition-colors duration-150
                   ${active
-                    ? 'bg-white text-black'
-                    : 'text-[oklch(0.52_0_0)] hover:text-white hover:glow'
+                    ? 'bg-[oklch(0.85_0.13_222)] text-black glow-box-cyan'
+                    : 'text-[oklch(0.52_0_0)] hover:text-[var(--jarvis-bright)] hover:glow-cyan'
                   }
                 `}
               >
@@ -165,7 +165,7 @@ export default function TopRail() {
         <button
           onClick={reboot}
           title="Replay boot sequence"
-          className="hud text-[10px] tracking-[0.18em] text-[oklch(0.45_0_0)] hover:text-white hover:glow transition-colors"
+          className="hud text-[10px] tracking-[0.18em] text-[oklch(0.45_0_0)] hover:text-[var(--jarvis-bright)] hover:glow-cyan transition-colors"
         >
           [ REBOOT ]
         </button>
