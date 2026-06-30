@@ -2,6 +2,7 @@ import { getServiceClient, USER_ID } from '@/lib/supabase'
 import {
   createCalendarEvent,
   updateCalendarEventTime,
+  deleteCalendarEvent,
   parseEventFromText,
   type EventInput,
 } from '@/lib/calendar/calendarWrite'
@@ -161,6 +162,52 @@ export async function changeAppointmentTime(
     all_day: parsed.allDay,
     updated_at: new Date().toISOString(),
   }).eq('id', upcoming.id).select().single()
+
+  return data as Appointment
+}
+
+export async function cancelAppointment(
+  summary: string,
+  whenText?: string | null,
+): Promise<Appointment | null> {
+  const db = getServiceClient()
+  const todayKey = new Date().toISOString().slice(0, 10)
+
+  const { data: rows } = await db
+    .from('appointments')
+    .select('*')
+    .eq('user_id', USER_ID)
+    .eq('canceled', false)
+    .ilike('summary', `%${summary.trim()}%`)
+    .order('start_local', { ascending: true })
+
+  const list = (rows ?? []) as Appointment[]
+  if (!list.length) return null
+
+  // If a time was given ("cancel appointment Dentist at 3pm"), prefer the row at that time.
+  let target: Appointment | undefined
+  if (whenText) {
+    const parsed = await parseEventFromText(`${summary} at ${whenText}`)
+    if (parsed) {
+      const key = String(parsed.start).slice(0, 16)
+      target = list.find(a => a.start_local.slice(0, 16) === key)
+    }
+  }
+  // Otherwise the next upcoming occurrence, falling back to the most recent past one.
+  target = target ?? list.find(a => a.start_local.slice(0, 10) >= todayKey) ?? list[list.length - 1]
+
+  if (target.google_event_id) {
+    try {
+      await deleteCalendarEvent(target.google_event_id)
+    } catch (err) {
+      console.error('Google Calendar delete failed (mirroring only):', err)
+    }
+  }
+
+  const { data } = await db.from('appointments').update({
+    canceled: true,
+    updated_at: new Date().toISOString(),
+  }).eq('id', target.id).select().single()
 
   return data as Appointment
 }

@@ -7,7 +7,7 @@ import { analyzeAndSaveRecipe } from '@/lib/nutrition/recipe'
 import { detectCompletionIntent, completeTaskByQuery } from '@/lib/tasks/taskIntent'
 import { parseEventFromText, createCalendarEvent } from '@/lib/calendar/calendarWrite'
 import { parseCommand } from '@/lib/router/commandParse'
-import { createAppointmentFromText, changeAppointmentTime } from '@/lib/calendar/appointments'
+import { createAppointmentFromText, changeAppointmentTime, cancelAppointment } from '@/lib/calendar/appointments'
 import { localDateKey } from '@/lib/localDateKey'
 
 // Single source of truth for routing a free-form TEXT message into the right place. Used by BOTH
@@ -86,6 +86,16 @@ export async function routeTextMessage(text: string, source = 'web'): Promise<Ro
         return { routedTo: 'calendar', confirmation: `🔁 *Appointment moved:* ${appt.summary}\nnow ${when}`, isCapture: false }
       }
       return { routedTo: 'calendar', confirmation: `⚠️ Couldn't find an appointment matching "${cmd.summary}" to move.`, isCapture: false }
+    }
+
+    if (cmd.kind === 'cancel_appointment') {
+      const appt = await cancelAppointment(cmd.summary, cmd.when)
+      if (appt) {
+        await recordCapture(text, 'calendar', source, appt.id)
+        const when = appt.all_day ? appt.start_local : appt.start_local.replace('T', ' ').slice(0, 16)
+        return { routedTo: 'calendar', confirmation: `🗑️ *Appointment canceled:* ${appt.summary}\n${when}`, isCapture: false }
+      }
+      return { routedTo: 'calendar', confirmation: `⚠️ Couldn't find an appointment matching "${cmd.summary}" to cancel.`, isCapture: false }
     }
   }
 

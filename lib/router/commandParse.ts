@@ -3,6 +3,7 @@
 //
 //   set appointment <subject> at <time> [every <freq>]
 //   change appointment <subject> at <oldtime> to <newtime>
+//   cancel appointment <subject> [at <time>]
 //   X <note text>            (a daily note — bullet, not a task)
 //
 // Anything that doesn't match falls through to the normal routeText pipeline
@@ -11,6 +12,7 @@
 export type Command =
   | { kind: 'set_appointment'; summary: string; when: string; freq: string | null }
   | { kind: 'change_appointment'; summary: string; oldWhen: string; newWhen: string }
+  | { kind: 'cancel_appointment'; summary: string; when: string | null }
   | { kind: 'note'; text: string }
   | null
 
@@ -21,6 +23,12 @@ export function parseCommand(raw: string): Command {
   const change = text.match(/^change\s+appointment\s+(.+?)\s+at\s+(.+?)\s+to\s+(.+)$/i)
   if (change) {
     return { kind: 'change_appointment', summary: change[1].trim(), oldWhen: change[2].trim(), newWhen: change[3].trim() }
+  }
+
+  // cancel appointment <subject> [at <time>]
+  const cancel = text.match(/^(?:cancel|delete|remove)\s+appointment\s+(.+?)(?:\s+at\s+(.+))?$/i)
+  if (cancel) {
+    return { kind: 'cancel_appointment', summary: cancel[1].trim(), when: cancel[2]?.trim() ?? null }
   }
 
   // set appointment <subject> at <time> [every <freq>]
