@@ -3,9 +3,8 @@ import { getGoogleAccessToken } from '@/lib/google/auth'
 import { localDateKey } from '@/lib/localDateKey'
 
 // Calendar WRITE (Phase 4 of the Telegram agent). The existing app/api/calendar GET stays a
-// read-only iCal feed; this adds event creation via the service account (shared with the
-// calendar with "Make changes to events"). Reusable server-side — /api/calendar POST and the
-// Telegram webhook both import createCalendarEvent / parseEventFromText.
+// read-only iCal feed; this adds event creation/updates via the service account (shared with the
+// calendar with "Make changes to events"). Reusable server-side.
 
 const CAL_SCOPE = 'https://www.googleapis.com/auth/calendar.events'
 
@@ -23,6 +22,7 @@ export interface EventInput {
   start: string // 'YYYY-MM-DDTHH:mm:ss' (timed) or 'YYYY-MM-DD' (all-day)
   end?: string
   location?: string
+  recurrence?: string[] // e.g. ['RRULE:FREQ=WEEKLY;BYDAY=MO']
 }
 
 export interface CreatedEvent {
@@ -57,6 +57,7 @@ export async function createCalendarEvent(input: EventInput): Promise<CreatedEve
     summary: input.summary.trim(),
     ...(input.description ? { description: input.description } : {}),
     ...(input.location ? { location: input.location } : {}),
+    ...(input.recurrence && input.recurrence.length ? { recurrence: input.recurrence } : {}),
   }
 
   if (allDay) {
@@ -90,6 +91,33 @@ export async function createCalendarEvent(input: EventInput): Promise<CreatedEve
     start: json.start?.dateTime ?? json.start?.date,
     end: json.end?.dateTime ?? json.end?.date,
     allDay,
+  }
+}
+
+// PATCH just the start/end of an existing event (the "change appointment" command).
+export async function updateCalendarEventTime(
+  eventId: string,
+  start: string,
+  end: string | undefined,
+  allDay?: boolean,
+): Promise<void> {
+  const isAllDay = allDay ?? !start.includes('T')
+  const body: Record<string, unknown> = isAllDay
+    ? { start: { date: start.slice(0, 10) }, end: { date: (end ? end.slice(0, 10) : nextDay(start.slice(0, 10))) } }
+    : { start: { dateTime: start, timeZone: tz() }, end: { dateTime: end ?? plusOneHour(start), timeZone: tz() } }
+
+  const token = await getGoogleAccessToken(CAL_SCOPE)
+  const res = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId())}/events/${encodeURIComponent(eventId)}`,
+    {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }
+  )
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}))
+    throw new Error(`Calendar update failed (${res.status}): ${json?.error?.message ?? 'unknown'}`)
   }
 }
 

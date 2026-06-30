@@ -6,6 +6,8 @@ import { logStandardFood, type Macros, type LoggedMeal } from '@/lib/nutrition/f
 import { analyzeAndSaveRecipe } from '@/lib/nutrition/recipe'
 import { detectCompletionIntent, completeTaskByQuery } from '@/lib/tasks/taskIntent'
 import { parseEventFromText, createCalendarEvent } from '@/lib/calendar/calendarWrite'
+import { parseCommand } from '@/lib/router/commandParse'
+import { createAppointmentFromText, changeAppointmentTime } from '@/lib/calendar/appointments'
 import { localDateKey } from '@/lib/localDateKey'
 
 // Single source of truth for routing a free-form TEXT message into the right place. Used by BOTH
@@ -52,6 +54,41 @@ function foodConfirm(meal: LoggedMeal, totals: Macros): string {
 }
 
 export async function routeTextMessage(text: string, source = 'web'): Promise<RouteResult> {
+  // 0. Explicit command grammar (deterministic, runs before the LLM router).
+  const cmd = parseCommand(text)
+  if (cmd) {
+    if (cmd.kind === 'note') {
+      const db = getServiceClient()
+      const today = localDateKey()
+      const { data } = await db.from('notes').insert({
+        user_id: USER_ID, note_date: today, text: cmd.text,
+      }).select().single()
+      await recordCapture(text, 'note', source, data?.id ?? null)
+      return { routedTo: 'note', confirmation: `🗒️ *Noted:* ${cmd.text}`, isCapture: false }
+    }
+
+    if (cmd.kind === 'set_appointment') {
+      const appt = await createAppointmentFromText(cmd.summary, cmd.when, cmd.freq)
+      if (appt) {
+        await recordCapture(text, 'calendar', source, appt.id)
+        const when = appt.all_day ? appt.start_local : appt.start_local.replace('T', ' ').slice(0, 16)
+        const rep = appt.recurrence ? `\n_repeats: ${appt.recurrence.replace('FREQ=', '').toLowerCase()}_` : ''
+        return { routedTo: 'calendar', confirmation: `📅 *Appointment set:* ${appt.summary}\n${when}${rep}`, isCapture: false }
+      }
+      // unparseable → fall through to normal routing
+    }
+
+    if (cmd.kind === 'change_appointment') {
+      const appt = await changeAppointmentTime(cmd.summary, cmd.newWhen)
+      if (appt) {
+        await recordCapture(text, 'calendar', source, appt.id)
+        const when = appt.all_day ? appt.start_local : appt.start_local.replace('T', ' ').slice(0, 16)
+        return { routedTo: 'calendar', confirmation: `🔁 *Appointment moved:* ${appt.summary}\nnow ${when}`, isCapture: false }
+      }
+      return { routedTo: 'calendar', confirmation: `⚠️ Couldn't find an appointment matching "${cmd.summary}" to move.`, isCapture: false }
+    }
+  }
+
   // 1. Task check-off (regex; cheap & specific).
   const det = detectCompletionIntent(text)
   if (det.isCompletion) {

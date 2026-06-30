@@ -45,7 +45,7 @@ function LiveTicker() {
 
 const NAV = [
   { label: 'HOME', href: '/' },
-  { label: 'CRM', href: '/crm' },
+  { label: 'COMMAND', href: '/command' },
   { label: 'FINANCE', href: '/finance' },
   { label: 'HEALTH', href: '/health' },
   { label: 'REVIEW', href: '/review' },
