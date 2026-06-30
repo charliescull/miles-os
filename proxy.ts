@@ -7,6 +7,9 @@ const PUBLIC_PATHS = [
   '/api/auth/login',
   '/api/auth/logout',
   '/api/telegram/webhook',
+  // Cron routes enforce their own Bearer-token auth in the Node runtime
+  // (the Edge middleware doesn't reliably resolve CRON_SECRET).
+  '/api/cron',
 ]
 
 export async function proxy(req: NextRequest) {
