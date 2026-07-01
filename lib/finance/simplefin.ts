@@ -74,11 +74,20 @@ export async function syncSimplefin(): Promise<{ ok: boolean; synced: number; ba
     }
   }
 
-  const cats = await categorize([...new Set(pending.map(p => p.desc))])
+  // Explicit dedupe on ext_id (a partial unique index isn't reliably inferable by upsert).
+  const ids = pending.map(p => p.txn.id)
+  const seen = new Set<string>()
+  if (ids.length) {
+    const { data: existing } = await db.from('fin_spend').select('ext_id').in('ext_id', ids)
+    for (const r of existing ?? []) if (r.ext_id) seen.add(r.ext_id)
+  }
+  const fresh = pending.filter(p => !seen.has(p.txn.id))
+
+  const cats = await categorize([...new Set(fresh.map(p => p.desc))])
 
   let synced = 0
-  for (const p of pending) {
-    const { error } = await db.from('fin_spend').upsert({
+  if (fresh.length) {
+    const { error } = await db.from('fin_spend').insert(fresh.map(p => ({
       amount: Math.abs(parseFloat(p.txn.amount)),
       merchant: p.desc,
       category: cats[p.desc] ?? 'other',
@@ -87,8 +96,8 @@ export async function syncSimplefin(): Promise<{ ok: boolean; synced: number; ba
       ext_id: p.txn.id,
       account_name: p.accountName,
       raw: JSON.stringify(p.txn),
-    }, { onConflict: 'ext_id', ignoreDuplicates: true })
-    if (!error) synced++
+    })))
+    if (!error) synced = fresh.length
   }
 
   return { ok: true, synced, balances }
