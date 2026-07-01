@@ -7,6 +7,7 @@ import { LineChart, Sparkline, Donut } from '@/components/finance/charts'
 import { HatchStrip } from '@/components/hud'
 import TradeForm from '@/components/finance/TradeForm'
 import MarketNews, { type MarketBrief } from '@/components/finance/MarketNews'
+import Scores, { type PortfolioScore } from '@/components/finance/Scores'
 import { RefreshCw, ChevronDown, Plus, Pencil } from 'lucide-react'
 
 // B&W 2.0 signal tokens — match --signal-up / --signal-down in globals.css
@@ -35,6 +36,7 @@ interface FinanceView {
   news: Record<string, { headline: string; source: string; url: string }[]>
   outlooks: Record<string, Outlook>
   marketBrief?: MarketBrief | null
+  score?: PortfolioScore | null
   fetchedAt: string
 }
 
@@ -317,6 +319,9 @@ export default function FinancePage() {
                   <Donut slices={v.capPie} size={120} />
                 </div>
               </div>
+
+              {/* portfolio scoring gauges (§8) */}
+              <Scores score={v.score} />
             </div>
 
             {/* RIGHT: market news (populated by the phase-4 7am job) */}

@@ -62,6 +62,11 @@
   --jarvis-deep: oklch(0.48 0.13 250);
   --stark-red: oklch(0.64 0.21 27);
 
+  /* Portfolio scoring — diversification/risk gauge ramp (amber→violet), kept visually
+     distinct from the cyan sentiment gauge so the two never read the same (overhaul v2 §3). */
+  --score-div-good: oklch(0.80 0.15 85);
+  --score-div-bad: oklch(0.62 0.18 300);
+
   /* Bloom — glyph core stays crisp white; the aura is now electric cyan.
      first shadow is tight (keeps text legible), outer halos are wide cyan. */
   --bloom-text:

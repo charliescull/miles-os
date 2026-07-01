@@ -1,6 +1,7 @@
 // Shared types for the finance positions terminal (rebuild v1).
 // See docs/vault/specs/finance-tab-rebuild-v1.md for the authoritative spec.
 import type { MarketBrief } from '@/components/finance/MarketNews'
+import type { PortfolioScore } from '@/components/finance/Scores'
 
 export type Instrument = 'equity' | 'etf' | 'crypto'
 
@@ -103,6 +104,7 @@ export interface FinanceView {
   news: Record<string, NewsHeadline[]>
   outlooks: Record<string, Outlook>
   marketBrief: MarketBrief | null
+  score: PortfolioScore | null
   fetchedAt: string
   stale: boolean
 }

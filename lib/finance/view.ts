@@ -2,6 +2,7 @@ import { getServiceClient } from '@/lib/supabase'
 import { ensureWeekAndRollover } from './food'
 import { completedWeeks, bankBalance } from './calc'
 import { getLatestBrief } from './marketBrief'
+import { getLatestScore } from './scoring'
 import type { FinanceCacheBlob } from './refresh'
 import type { FinanceView, Outlook } from './types'
 
@@ -29,6 +30,7 @@ export async function assembleView(blob: FinanceCacheBlob, now = new Date()): Pr
   }
 
   const marketBrief = await getLatestBrief()
+  const score = await getLatestScore()
 
   return {
     netWorth,
@@ -55,6 +57,7 @@ export async function assembleView(blob: FinanceCacheBlob, now = new Date()): Pr
     news: blob.news,
     outlooks,
     marketBrief,
+    score,
     fetchedAt: blob.fetchedAt,
     stale: false,
   }
