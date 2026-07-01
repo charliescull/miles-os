@@ -8,6 +8,7 @@ import { HatchStrip } from '@/components/hud'
 import TradeForm from '@/components/finance/TradeForm'
 import MarketNews, { type MarketBrief } from '@/components/finance/MarketNews'
 import Scores, { type PortfolioScore } from '@/components/finance/Scores'
+import Recurring from '@/components/finance/Recurring'
 import { RefreshCw, ChevronDown, Plus, Pencil } from 'lucide-react'
 
 // B&W 2.0 signal tokens — match --signal-up / --signal-down in globals.css
@@ -328,6 +329,9 @@ export default function FinancePage() {
             <MarketNews brief={v.marketBrief} />
           </div>
         </div>
+
+        {/* recurring / bills module (§9) */}
+        <Recurring onChange={load} />
 
         <p className="card-label text-center text-[oklch(0.35_0_0)]">
           updated {new Date(v.fetchedAt).toLocaleString()} · prices via Finnhub/Yahoo · XRP pinned

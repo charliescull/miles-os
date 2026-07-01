@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { isAuthenticatedFromRequest } from '@/lib/auth'
 import { generateMarketBrief } from '@/lib/finance/marketBrief'
 import { generatePortfolioScore } from '@/lib/finance/scoring'
+import { runBillAlerts } from '@/lib/finance/billAlerts'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -21,7 +22,8 @@ async function run(req: NextRequest) {
     const isSunday = new Date().getUTCDay() === 0
     const weekly = forceWeekly || isSunday ? await generateMarketBrief('weekly') : null
     const score = await generatePortfolioScore() // §8: compute after holdings enrich
-    return NextResponse.json({ ok: true, daily, weekly, score })
+    const bills = await runBillAlerts() // §9.4: renewal/expiration alerts + roll-forward
+    return NextResponse.json({ ok: true, daily, weekly, score, bills })
   } catch (e) {
     return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : 'brief failed' }, { status: 500 })
   }
