@@ -6,6 +6,7 @@ import FinanceCore from '@/components/finance/FinanceCore'
 import { LineChart, Sparkline, Donut } from '@/components/finance/charts'
 import { HatchStrip } from '@/components/hud'
 import TradeForm from '@/components/finance/TradeForm'
+import MarketNews, { type MarketBrief } from '@/components/finance/MarketNews'
 import { RefreshCw, ChevronDown, Plus, Pencil } from 'lucide-react'
 
 // B&W 2.0 signal tokens — match --signal-up / --signal-down in globals.css
@@ -33,6 +34,7 @@ interface FinanceView {
   sparklines: Record<string, number[]>
   news: Record<string, { headline: string; source: string; url: string }[]>
   outlooks: Record<string, Outlook>
+  marketBrief?: MarketBrief | null
   fetchedAt: string
 }
 
@@ -263,49 +265,62 @@ export default function FinancePage() {
             {v.top3.map(t => <TopCard key={t} v={v} ticker={t} />)}
           </div>
 
-          {/* all holdings */}
-          <div className="overflow-x-auto">
-            <div className="grid grid-cols-[64px_1fr_72px_140px_140px_90px_80px_90px_28px] gap-2 px-2 pb-1 border-b border-[oklch(1_0_0/0.06)]">
-              {['TICKER', '7D', 'PRICE', '7D P/L', 'COST P/L', 'SHARES', 'AVG', 'VALUE', ''].map((h, i) => (
-                <span key={i} className="card-label">{h}</span>
-              ))}
-            </div>
-            {v.holdings.map(h => (
-              <div key={h.ticker} className="grid grid-cols-[64px_1fr_72px_140px_140px_90px_80px_90px_28px] gap-2 px-2 py-1.5 items-center border-b border-[oklch(1_0_0/0.03)] hover:bg-[oklch(1_0_0/0.02)] text-xs group">
-                <div>
-                  <span className="mono text-white">{h.ticker}</span>
-                  {h.pinned && <span className="card-label ml-1 text-[oklch(0.45_0_0)]">pin</span>}
+          {/* portfolio (left ~60%) + market news (right ~40%) */}
+          <div className="grid grid-cols-1 md:grid-cols-[1.5fr_1fr] gap-3">
+            {/* LEFT: holdings table + allocation donuts */}
+            <div className="space-y-4 min-w-0">
+              <div className="overflow-x-auto">
+                <div className="grid grid-cols-[56px_56px_64px_104px_104px_72px_64px_78px_24px] gap-2 px-1 pb-1 border-b border-[oklch(1_0_0/0.06)]">
+                  {['TICKER', '7D', 'PRICE', '7D P/L', 'COST P/L', 'SHARES', 'AVG', 'VALUE', ''].map((h, i) => (
+                    <span key={i} className="card-label">{h}</span>
+                  ))}
                 </div>
-                <div className="h-7"><Sparkline data={v.sparklines[h.ticker]} /></div>
-                <span className="mono text-white">{usd(h.price)}</span>
-                <span className="text-[10px]"><Pnl abs={h.move7dAbs} pctv={h.move7dPct} /></span>
-                <span className="text-[10px]"><Pnl abs={h.costAbs} pctv={h.costPct} /></span>
-                <span className="mono text-[oklch(0.65_0_0)]">{shares(h.shares)}</span>
-                <span className="mono text-[oklch(0.65_0_0)]">{h.avgCost === null ? '—' : usd(h.avgCost)}</span>
-                <span className="mono text-white">{usd(h.positionValue)}</span>
-                {h.id ? (
-                  <button
-                    onClick={() => { setEditTarget({ id: h.id!, ticker: h.ticker, shares: h.shares, avgCost: h.avgCost }); setTradeOpen(true) }}
-                    className="text-[oklch(0.35_0_0)] opacity-0 group-hover:opacity-100 hover:text-[var(--jarvis)] transition"
-                    aria-label={`edit ${h.ticker}`}
-                  >
-                    <Pencil size={11} />
-                  </button>
-                ) : <span />}
+                {v.holdings.map(h => (
+                  <div key={h.ticker} className="grid grid-cols-[56px_56px_64px_104px_104px_72px_64px_78px_24px] gap-2 px-1 py-1.5 items-center border-b border-[oklch(1_0_0/0.03)] hover:bg-[oklch(1_0_0/0.02)] text-xs group">
+                    <div>
+                      <span className="mono text-white">{h.ticker}</span>
+                      {h.pinned && <span className="card-label ml-1 text-[oklch(0.45_0_0)]">pin</span>}
+                    </div>
+                    <div className="w-[56px] h-6"><Sparkline data={v.sparklines[h.ticker]} height={24} /></div>
+                    <span className="mono text-white">{usd(h.price)}</span>
+                    <span className="text-[10px] truncate"><Pnl abs={h.move7dAbs} pctv={h.move7dPct} /></span>
+                    <span className="text-[10px] truncate"><Pnl abs={h.costAbs} pctv={h.costPct} /></span>
+                    <span className="mono text-[oklch(0.65_0_0)]">{shares(h.shares)}</span>
+                    <span className="mono text-[oklch(0.65_0_0)]">{h.avgCost === null ? '—' : usd(h.avgCost)}</span>
+                    <span className="mono text-white">{usd(h.positionValue)}</span>
+                    {h.id ? (
+                      <button
+                        onClick={() => { setEditTarget({ id: h.id!, ticker: h.ticker, shares: h.shares, avgCost: h.avgCost }); setTradeOpen(true) }}
+                        className="text-[oklch(0.35_0_0)] opacity-0 group-hover:opacity-100 hover:text-[var(--jarvis)] transition"
+                        aria-label={`edit ${h.ticker}`}
+                      >
+                        <Pencil size={11} />
+                      </button>
+                    ) : <span />}
+                  </div>
+                ))}
+                {v.holdings.length === 0 && (
+                  <p className="text-[11px] text-[oklch(0.45_0_0)] py-6 text-center">
+                    No positions yet — hit <span className="text-[var(--jarvis)]">+ TRADE</span> or Telegram “bought 10 NVDA @ 120”.
+                  </p>
+                )}
               </div>
-            ))}
-          </div>
 
-          {/* pies */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
-            <div className="card rounded-sm p-3">
-              <p className="card-label mb-2">SECTOR</p>
-              <Donut slices={v.sectorPie} />
+              {/* allocation donuts */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                <div className="card rounded-sm p-3">
+                  <p className="card-label mb-2">SECTOR</p>
+                  <Donut slices={v.sectorPie} size={120} />
+                </div>
+                <div className="card rounded-sm p-3">
+                  <p className="card-label mb-2">MARKET CAP</p>
+                  <Donut slices={v.capPie} size={120} />
+                </div>
+              </div>
             </div>
-            <div className="card rounded-sm p-3">
-              <p className="card-label mb-2">MARKET CAP</p>
-              <Donut slices={v.capPie} />
-            </div>
+
+            {/* RIGHT: market news (populated by the phase-4 7am job) */}
+            <MarketNews brief={v.marketBrief} />
           </div>
         </div>
 
