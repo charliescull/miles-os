@@ -105,6 +105,8 @@ export interface FinanceView {
   outlooks: Record<string, Outlook>
   marketBrief: MarketBrief | null
   score: PortfolioScore | null
+  dreamTarget: number
+  dreamLabel: string
   fetchedAt: string
   stale: boolean
 }

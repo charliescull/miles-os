@@ -32,6 +32,12 @@ export async function assembleView(blob: FinanceCacheBlob, now = new Date()): Pr
   const marketBrief = await getLatestBrief()
   const score = await getLatestScore()
 
+  // Dream-car target (fin_config singleton; env override optional).
+  const db2 = getServiceClient()
+  const { data: cfg } = await db2.from('fin_config').select('dream_target, dream_label').eq('id', 1).maybeSingle()
+  const dreamTarget = Number(process.env.DREAM_TARGET ?? cfg?.dream_target ?? 88750)
+  const dreamLabel = cfg?.dream_label ?? '2022 Porsche 718 Cayman GTS 4.0'
+
   return {
     netWorth,
     investmentsSide,
@@ -58,6 +64,8 @@ export async function assembleView(blob: FinanceCacheBlob, now = new Date()): Pr
     outlooks,
     marketBrief,
     score,
+    dreamTarget,
+    dreamLabel,
     fetchedAt: blob.fetchedAt,
     stale: false,
   }

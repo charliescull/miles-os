@@ -324,6 +324,29 @@ body::after {
 }
 
 /* ------------------------------------------------------------
+   Finance overhaul v2 (§11.2) — clean futuristic motion
+   ------------------------------------------------------------ */
+/* Cyan "charge" sweep across a card's top border on hover. */
+.card-charge { position: relative; }
+.card-charge::before {
+  content: '';
+  position: absolute; inset: 0 0 auto 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--jarvis-bright), transparent);
+  opacity: 0; transform: translateX(-100%);
+  transition: opacity 0.2s var(--snap, ease);
+  pointer-events: none;
+}
+.card-charge:hover::before { opacity: 1; animation: card-charge-sweep 700ms ease-out; }
+@keyframes card-charge-sweep {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}
+
+/* Line/sparkline draw-on when a chart mounts. */
+@keyframes draw-on { from { stroke-dashoffset: var(--dash, 300); } to { stroke-dashoffset: 0; } }
+.draw-on { stroke-dasharray: var(--dash, 300); animation: draw-on 900ms ease-out both; }
+
+/* ------------------------------------------------------------
    Reduced motion — full path, not an afterthought
    ------------------------------------------------------------ */
 @media (prefers-reduced-motion: reduce) {
@@ -334,6 +357,8 @@ body::after {
   }
   .online-dot, .drift-rotate, .drift-rotate-rev, .drift-breathe,
   .spin-slow, .spin-slow-rev, .arc-pulse, .sweep-sw, .scan-vert, .bar-jitter { animation: none !important; }
+  .card-charge:hover::before { animation: none !important; opacity: 0 !important; }
+  .draw-on { animation: none !important; stroke-dashoffset: 0 !important; }
   body::after { display: none; }
   body::before { background: radial-gradient(120% 85% at 50% -5%, oklch(0.5 0.12 232 / 0.08) 0%, transparent 55%); }
 }

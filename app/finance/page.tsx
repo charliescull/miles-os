@@ -11,6 +11,7 @@ import Scores, { type PortfolioScore } from '@/components/finance/Scores'
 import Recurring from '@/components/finance/Recurring'
 import CreditCard from '@/components/finance/CreditCard'
 import SpendReadout from '@/components/finance/SpendReadout'
+import DreamCar from '@/components/finance/DreamCar'
 import { RefreshCw, ChevronDown, Plus, Pencil } from 'lucide-react'
 
 // B&W 2.0 signal tokens — match --signal-up / --signal-down in globals.css
@@ -40,6 +41,8 @@ interface FinanceView {
   outlooks: Record<string, Outlook>
   marketBrief?: MarketBrief | null
   score?: PortfolioScore | null
+  dreamTarget?: number
+  dreamLabel?: string
   fetchedAt: string
 }
 
@@ -188,7 +191,7 @@ export default function FinancePage() {
         {/* ---- money header (net worth · food · credit) ---- */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {/* net worth */}
-          <div className="card rounded-sm p-4">
+          <div className="card card-charge rounded-sm p-4">
             <div className="flex items-center justify-between">
               <button onClick={() => setShowSplit(s => !s)} className="flex items-center gap-1 group">
                 <span className="card-label">NET WORTH</span>
@@ -340,6 +343,9 @@ export default function FinancePage() {
 
         {/* recurring / bills module (§9) */}
         <Recurring onChange={load} />
+
+        {/* dream-car progress (§11) */}
+        <DreamCar netWorth={v.netWorth} target={v.dreamTarget ?? 88750} label={v.dreamLabel ?? '2022 Porsche 718 Cayman GTS 4.0'} />
 
         <p className="card-label text-center text-[oklch(0.35_0_0)]">
           updated {new Date(v.fetchedAt).toLocaleString()} · prices via Finnhub/Yahoo · XRP pinned
