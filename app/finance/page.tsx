@@ -5,7 +5,8 @@ import Shell from '@/components/dashboard/Shell'
 import FinanceCore from '@/components/finance/FinanceCore'
 import { LineChart, Sparkline, Donut } from '@/components/finance/charts'
 import { HatchStrip } from '@/components/hud'
-import { RefreshCw, ChevronDown } from 'lucide-react'
+import TradeForm from '@/components/finance/TradeForm'
+import { RefreshCw, ChevronDown, Plus, Pencil } from 'lucide-react'
 
 // B&W 2.0 signal tokens — match --signal-up / --signal-down in globals.css
 const GREEN = 'oklch(0.78 0.17 150)'
@@ -14,7 +15,7 @@ const RED = 'oklch(0.64 0.21 27)'
 // ---- shapes (mirror lib/finance/types.ts FinanceView) ----
 interface Candle { t: number[]; c: number[] }
 interface Holding {
-  ticker: string; companyName: string | null; shares: number; avgCost: number | null
+  id?: string; ticker: string; companyName: string | null; shares: number; avgCost: number | null
   instrument: 'equity' | 'etf' | 'crypto'; sector: string; pinned?: boolean
   price: number | null; positionValue: number | null
   move7dAbs: number | null; move7dPct: number | null
@@ -120,6 +121,8 @@ export default function FinancePage() {
   const [refreshing, setRefreshing] = useState(false)
   const [showSplit, setShowSplit] = useState(false)
   const [spend, setSpend] = useState('')
+  const [tradeOpen, setTradeOpen] = useState(false)
+  const [editTarget, setEditTarget] = useState<{ id: string; ticker: string; shares: number; avgCost: number | null } | null>(null)
 
   async function load() {
     try {
@@ -239,11 +242,19 @@ export default function FinancePage() {
               <span className="card-label">TOTAL HOLDINGS</span>
               <p className="mono text-2xl font-light text-white">{usd(v.investmentsSide)}</p>
             </div>
-            <div className="text-right">
-              <p className="mono text-sm" style={{ color: sign(v.total7dAbs) }}>
-                {arrow(v.total7dAbs)} {pct(v.total7dPct)} <span className="text-[oklch(0.50_0_0)]">/</span> {v.total7dAbs >= 0 ? '+' : ''}{usd(v.total7dAbs)}
-              </p>
-              <span className="card-label">7-DAY · incl. {usd(v.buyingPower)} cash</span>
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <p className="mono text-sm" style={{ color: sign(v.total7dAbs) }}>
+                  {arrow(v.total7dAbs)} {pct(v.total7dPct)} <span className="text-[oklch(0.50_0_0)]">/</span> {v.total7dAbs >= 0 ? '+' : ''}{usd(v.total7dAbs)}
+                </p>
+                <span className="card-label">7-DAY · incl. {usd(v.buyingPower)} cash</span>
+              </div>
+              <button
+                onClick={() => { setEditTarget(null); setTradeOpen(true) }}
+                className="hud text-xs px-2.5 py-1.5 flex items-center gap-1 border border-[var(--jarvis)] text-[var(--jarvis)] hover:bg-[oklch(0.10_0.02_240)] transition"
+              >
+                <Plus size={12} /> TRADE
+              </button>
             </div>
           </div>
 
@@ -254,13 +265,13 @@ export default function FinancePage() {
 
           {/* all holdings */}
           <div className="overflow-x-auto">
-            <div className="grid grid-cols-[64px_1fr_72px_140px_140px_90px_80px_90px] gap-2 px-2 pb-1 border-b border-[oklch(1_0_0/0.06)]">
-              {['TICKER', '7D', 'PRICE', '7D P/L', 'COST P/L', 'SHARES', 'AVG', 'VALUE'].map(h => (
-                <span key={h} className="card-label">{h}</span>
+            <div className="grid grid-cols-[64px_1fr_72px_140px_140px_90px_80px_90px_28px] gap-2 px-2 pb-1 border-b border-[oklch(1_0_0/0.06)]">
+              {['TICKER', '7D', 'PRICE', '7D P/L', 'COST P/L', 'SHARES', 'AVG', 'VALUE', ''].map((h, i) => (
+                <span key={i} className="card-label">{h}</span>
               ))}
             </div>
             {v.holdings.map(h => (
-              <div key={h.ticker} className="grid grid-cols-[64px_1fr_72px_140px_140px_90px_80px_90px] gap-2 px-2 py-1.5 items-center border-b border-[oklch(1_0_0/0.03)] hover:bg-[oklch(1_0_0/0.02)] text-xs">
+              <div key={h.ticker} className="grid grid-cols-[64px_1fr_72px_140px_140px_90px_80px_90px_28px] gap-2 px-2 py-1.5 items-center border-b border-[oklch(1_0_0/0.03)] hover:bg-[oklch(1_0_0/0.02)] text-xs group">
                 <div>
                   <span className="mono text-white">{h.ticker}</span>
                   {h.pinned && <span className="card-label ml-1 text-[oklch(0.45_0_0)]">pin</span>}
@@ -272,6 +283,15 @@ export default function FinancePage() {
                 <span className="mono text-[oklch(0.65_0_0)]">{shares(h.shares)}</span>
                 <span className="mono text-[oklch(0.65_0_0)]">{h.avgCost === null ? '—' : usd(h.avgCost)}</span>
                 <span className="mono text-white">{usd(h.positionValue)}</span>
+                {h.id ? (
+                  <button
+                    onClick={() => { setEditTarget({ id: h.id!, ticker: h.ticker, shares: h.shares, avgCost: h.avgCost }); setTradeOpen(true) }}
+                    className="text-[oklch(0.35_0_0)] opacity-0 group-hover:opacity-100 hover:text-[var(--jarvis)] transition"
+                    aria-label={`edit ${h.ticker}`}
+                  >
+                    <Pencil size={11} />
+                  </button>
+                ) : <span />}
               </div>
             ))}
           </div>
@@ -294,6 +314,14 @@ export default function FinancePage() {
         </p>
       </div>
       </div>
+
+      {tradeOpen && (
+        <TradeForm
+          edit={editTarget}
+          onClose={() => { setTradeOpen(false); setEditTarget(null) }}
+          onDone={() => { setTradeOpen(false); setEditTarget(null); load() }}
+        />
+      )}
     </Shell>
   )
 }

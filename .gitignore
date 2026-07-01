@@ -50,3 +50,5 @@ next-env.d.ts
 /*-before.png
 /*-after.png
 /health-whoop.png
+
+.vercel

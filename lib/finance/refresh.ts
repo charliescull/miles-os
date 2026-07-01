@@ -1,5 +1,6 @@
 import { getServiceClient } from '@/lib/supabase'
 import { readFinanceSheet } from './sheets'
+import { listOpenHoldings } from './holdings'
 import { getQuote, getProfile, getCandles, getHourlySeries, getNews, closeNDaysAgo, sliceByDays } from './finnhub'
 import {
   enrichAll,
@@ -40,16 +41,19 @@ export interface FinanceCacheBlob {
 // and write a silent net-worth snapshot. Date- and food-dependent values are computed at
 // render time (see assembleView), so this blob stays valid for the full TTL.
 export async function refreshAll(): Promise<FinanceCacheBlob> {
+  // Holdings now live in Supabase (fin_holdings), editable via TradeForm/Telegram. The sheet is
+  // still the source for bank/liabilities/buying-power until those migrate (spec §5.2).
   const parsed = await readFinanceSheet()
   const weeklyProfit = computeWeeklyProfit(parsed)
   const bankSeed = parsed.accounts.bankAccount ?? 0
+  const holdings = await listOpenHoldings()
 
   const market: MarketData = { prices: {}, prices7d: {}, caps: {}, names: {} }
   const sparklines: Record<string, number[]> = {}
 
   // Equities/ETFs only — XRP is pinned (no API call). 3 concurrent calls per holding keeps
   // us well under Finnhub's 60/min free limit.
-  for (const h of parsed.holdings) {
+  for (const h of holdings) {
     if (h.instrument === 'crypto') continue
     const [q, prof, c7] = await Promise.all([getQuote(h.ticker), getProfile(h.ticker), getCandles(h.ticker, 7)])
     if (q) market.prices[h.ticker] = q.c
@@ -62,7 +66,7 @@ export async function refreshAll(): Promise<FinanceCacheBlob> {
     if (c7) sparklines[h.ticker] = (sliceByDays(c7, 7) ?? c7).c
   }
 
-  const enriched = enrichAll(parsed.holdings, market)
+  const enriched = enrichAll(holdings, market)
   const top3 = pickTop3(enriched)
 
   const db = getServiceClient()

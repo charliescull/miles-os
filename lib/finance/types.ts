@@ -4,6 +4,7 @@
 export type Instrument = 'equity' | 'etf' | 'crypto'
 
 export interface Holding {
+  id?: string             // fin_holdings row id (present for Supabase-backed holdings; enables inline Edit)
   ticker: string          // uppercased symbol used for Finnhub (e.g. 'META')
   rawTicker: string       // as written in the sheet (e.g. 'Meta')
   shares: number
