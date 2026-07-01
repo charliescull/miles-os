@@ -346,6 +346,36 @@ body::after {
 @keyframes draw-on { from { stroke-dashoffset: var(--dash, 300); } to { stroke-dashoffset: 0; } }
 .draw-on { stroke-dasharray: var(--dash, 300); animation: draw-on 900ms ease-out both; }
 
+/* Discreet ambient side rails — thin cyan data-streams down both page edges. */
+.side-rail {
+  position: fixed; top: 0; bottom: 0; width: 2px; z-index: 30;
+  pointer-events: none;
+  background: linear-gradient(180deg,
+    transparent 0%,
+    oklch(0.82 0.13 225 / 0.04) 18%,
+    oklch(0.82 0.13 225 / 0.12) 50%,
+    oklch(0.82 0.13 225 / 0.04) 82%,
+    transparent 100%);
+}
+.side-rail-l { left: 0; }
+.side-rail-r { right: 0; }
+/* a soft spark that travels down each rail on a slow loop */
+.side-rail::after {
+  content: '';
+  position: absolute; left: -1px; right: -1px; height: 20%;
+  background: linear-gradient(180deg, transparent, var(--jarvis-bright), transparent);
+  filter: blur(0.6px);
+  opacity: 0.55;
+  animation: rail-flow 7.5s linear infinite;
+}
+.side-rail-r::after { animation-delay: -3.75s; }
+@keyframes rail-flow {
+  0%   { transform: translateY(-130%); opacity: 0; }
+  8%   { opacity: 0.6; }
+  92%  { opacity: 0.6; }
+  100% { transform: translateY(520%); opacity: 0; }
+}
+
 /* ------------------------------------------------------------
    Reduced motion — full path, not an afterthought
    ------------------------------------------------------------ */
@@ -357,6 +387,7 @@ body::after {
   }
   .online-dot, .drift-rotate, .drift-rotate-rev, .drift-breathe,
   .spin-slow, .spin-slow-rev, .arc-pulse, .sweep-sw, .scan-vert, .bar-jitter { animation: none !important; }
+  .side-rail::after { animation: none !important; opacity: 0 !important; }
   .card-charge:hover::before { animation: none !important; opacity: 0 !important; }
   .draw-on { animation: none !important; stroke-dashoffset: 0 !important; }
   body::after { display: none; }
