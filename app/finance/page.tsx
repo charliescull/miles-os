@@ -9,6 +9,8 @@ import TradeForm from '@/components/finance/TradeForm'
 import MarketNews, { type MarketBrief } from '@/components/finance/MarketNews'
 import Scores, { type PortfolioScore } from '@/components/finance/Scores'
 import Recurring from '@/components/finance/Recurring'
+import CreditCard from '@/components/finance/CreditCard'
+import SpendReadout from '@/components/finance/SpendReadout'
 import { RefreshCw, ChevronDown, Plus, Pencil } from 'lucide-react'
 
 // B&W 2.0 signal tokens — match --signal-up / --signal-down in globals.css
@@ -183,8 +185,8 @@ export default function FinancePage() {
 
       <div className="p-4 space-y-3">
 
-        {/* ---- money header ---- */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {/* ---- money header (net worth · food · credit) ---- */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {/* net worth */}
           <div className="card rounded-sm p-4">
             <div className="flex items-center justify-between">
@@ -238,7 +240,13 @@ export default function FinancePage() {
               </button>
             </div>
           </div>
+
+          {/* credit / Discover (§10) */}
+          <CreditCard />
         </div>
+
+        {/* today / this-week spend readout (§10.3) */}
+        <SpendReadout />
 
         {/* ---- investments terminal ---- */}
         <div className="card rounded-sm p-4 space-y-4">

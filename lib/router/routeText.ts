@@ -10,6 +10,7 @@ import { parseCommand } from '@/lib/router/commandParse'
 import { createAppointmentFromText, changeAppointmentTime, cancelAppointment } from '@/lib/calendar/appointments'
 import { applyTrade, getOpenShares } from '@/lib/finance/holdings'
 import { getQuote } from '@/lib/finance/finnhub'
+import { addSpend } from '@/lib/finance/spend'
 import { localDateKey } from '@/lib/localDateKey'
 
 // Single source of truth for routing a free-form TEXT message into the right place. Used by BOTH
@@ -123,6 +124,12 @@ export async function routeTextMessage(text: string, source = 'web'): Promise<Ro
       } catch (e) {
         return { routedTo: 'calendar', confirmation: `⚠️ Trade failed: ${e instanceof Error ? e.message : 'error'}`, isCapture: false }
       }
+    }
+
+    if (cmd.kind === 'spend') {
+      const row = await addSpend({ amount: cmd.amount, merchant: cmd.merchant ?? undefined, category: cmd.category, source: 'telegram' })
+      await recordCapture(text, 'note', source, row.id)
+      return { routedTo: 'note', confirmation: `💸 *Spent* $${cmd.amount.toFixed(2)}${cmd.merchant ? ` on ${cmd.merchant}` : ''} _(${cmd.category})_`, isCapture: false }
     }
   }
 
