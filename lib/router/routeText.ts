@@ -8,6 +8,9 @@ import { detectCompletionIntent, completeTaskByQuery } from '@/lib/tasks/taskInt
 import { parseEventFromText, createCalendarEvent } from '@/lib/calendar/calendarWrite'
 import { parseCommand } from '@/lib/router/commandParse'
 import { createAppointmentFromText, changeAppointmentTime, cancelAppointment } from '@/lib/calendar/appointments'
+import { applyTrade, getOpenShares } from '@/lib/finance/holdings'
+import { getQuote } from '@/lib/finance/finnhub'
+import { addSpend } from '@/lib/finance/spend'
 import { localDateKey } from '@/lib/localDateKey'
 
 // Single source of truth for routing a free-form TEXT message into the right place. Used by BOTH
@@ -96,6 +99,37 @@ export async function routeTextMessage(text: string, source = 'web'): Promise<Ro
         return { routedTo: 'calendar', confirmation: `🗑️ *Appointment canceled:* ${appt.summary}\n${when}`, isCapture: false }
       }
       return { routedTo: 'calendar', confirmation: `⚠️ Couldn't find an appointment matching "${cmd.summary}" to cancel.`, isCapture: false }
+    }
+
+    if (cmd.kind === 'trade') {
+      try {
+        // Resolve "sold all" → current share count; resolve missing price → live quote.
+        const shares = cmd.shares === 'all' ? await getOpenShares(cmd.ticker) : cmd.shares
+        if (!(shares > 0)) {
+          return { routedTo: 'calendar', confirmation: `⚠️ No ${cmd.ticker} shares to ${cmd.side}.`, isCapture: false }
+        }
+        let price = cmd.price
+        if (price === null) {
+          const q = await getQuote(cmd.ticker)
+          price = q?.c ?? null
+        }
+        if (price === null) {
+          return { routedTo: 'calendar', confirmation: `⚠️ Couldn't get a price for ${cmd.ticker}. Add one: "${cmd.side === 'buy' ? 'bought' : 'sold'} ${cmd.shares} ${cmd.ticker} @ <price>".`, isCapture: false }
+        }
+        const res = await applyTrade({ ticker: cmd.ticker, side: cmd.side, shares, price, note: 'via telegram' })
+        await recordCapture(text, 'calendar', source, res.holding.id)
+        const verb = cmd.side === 'buy' ? '🟢 *Bought*' : '🔴 *Sold*'
+        const tail = res.closed ? '\n_position closed_' : `\n_now ${res.netShares} sh @ avg ${res.holding.avg_cost != null ? '$' + Number(res.holding.avg_cost).toFixed(2) : '—'}_`
+        return { routedTo: 'calendar', confirmation: `${verb} ${shares} ${cmd.ticker} @ $${price.toFixed(2)}${tail}`, isCapture: false }
+      } catch (e) {
+        return { routedTo: 'calendar', confirmation: `⚠️ Trade failed: ${e instanceof Error ? e.message : 'error'}`, isCapture: false }
+      }
+    }
+
+    if (cmd.kind === 'spend') {
+      const row = await addSpend({ amount: cmd.amount, merchant: cmd.merchant ?? undefined, category: cmd.category, source: 'telegram' })
+      await recordCapture(text, 'note', source, row.id)
+      return { routedTo: 'note', confirmation: `💸 *Spent* $${cmd.amount.toFixed(2)}${cmd.merchant ? ` on ${cmd.merchant}` : ''} _(${cmd.category})_`, isCapture: false }
     }
   }
 

@@ -36,6 +36,26 @@ export async function getQuote(symbol: string): Promise<Quote | null> {
   return { c: j.c, pc: j.pc ?? j.c, d: j.d ?? null, dp: j.dp ?? null }
 }
 
+export interface SymbolMatch {
+  symbol: string
+  description: string
+  type: string
+}
+
+// Ticker autocomplete for the TradeForm. Fails soft to [] (no key / network).
+export async function searchSymbols(query: string): Promise<SymbolMatch[]> {
+  const key = finnhubKey()
+  if (!key || !query.trim()) return []
+  const j = (await getJson(`${FINNHUB_BASE}/search?q=${encodeURIComponent(query)}&token=${key}`)) as
+    | { result?: { symbol?: string; description?: string; type?: string }[] }
+    | null
+  if (!j || !Array.isArray(j.result)) return []
+  return j.result
+    .filter(r => r.symbol && !r.symbol.includes('.')) // skip foreign-exchange dupes
+    .slice(0, 8)
+    .map(r => ({ symbol: r.symbol!, description: r.description ?? '', type: r.type ?? '' }))
+}
+
 export interface Profile {
   name: string | null
   marketCap: number | null // USD

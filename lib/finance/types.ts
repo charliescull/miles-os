@@ -1,9 +1,12 @@
 // Shared types for the finance positions terminal (rebuild v1).
 // See docs/vault/specs/finance-tab-rebuild-v1.md for the authoritative spec.
+import type { MarketBrief } from '@/components/finance/MarketNews'
+import type { PortfolioScore } from '@/components/finance/Scores'
 
 export type Instrument = 'equity' | 'etf' | 'crypto'
 
 export interface Holding {
+  id?: string             // fin_holdings row id (present for Supabase-backed holdings; enables inline Edit)
   ticker: string          // uppercased symbol used for Finnhub (e.g. 'META')
   rawTicker: string       // as written in the sheet (e.g. 'Meta')
   shares: number
@@ -100,6 +103,10 @@ export interface FinanceView {
   sparklines: Record<string, number[]>
   news: Record<string, NewsHeadline[]>
   outlooks: Record<string, Outlook>
+  marketBrief: MarketBrief | null
+  score: PortfolioScore | null
+  dreamTarget: number
+  dreamLabel: string
   fetchedAt: string
   stale: boolean
 }
