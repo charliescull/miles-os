@@ -36,6 +36,20 @@ export function bankBalance(
   return bankSeed + weeklyProfit * weeksDone + foodVarianceSum
 }
 
+// Transactional cash model (finance overhaul v2 follow-up). Replaces the weekly-profit projection
+// with ACTUAL logged income and expenses so net worth reflects real cash flow:
+//   cash = starting cash + paychecks − daily (non-food) spend + food-budget variance.
+// Food isn't subtracted here — it runs through the weekly $150 budget, whose closed-week variance
+// (leftover positive / overage negative) is `foodVarianceSum`, so food is already accounted for.
+export function cashBalance(
+  cashSeed: number,
+  incomeTotal: number,
+  nonFoodSpend: number,
+  foodVarianceSum: number
+): number {
+  return cashSeed + incomeTotal - nonFoodSpend + foodVarianceSum
+}
+
 export function enrichHolding(h: Holding, market: MarketData): EnrichedHolding {
   const isXrp = h.instrument === 'crypto'
   const price = isXrp ? XRP_PINNED_PRICE : market.prices[h.ticker] ?? null

@@ -38,6 +38,16 @@ export async function addSpend(input: { amount: number; merchant?: string; categ
   return data as SpendRow
 }
 
+// Cumulative NON-FOOD spend (food is handled by the weekly food budget → variance, so it must
+// not be double-counted here). Feeds the cash balance / net worth.
+export async function nonFoodSpendTotal(): Promise<number> {
+  const db = getServiceClient()
+  const { data } = await db.from('fin_spend').select('amount, category')
+  return (data ?? [])
+    .filter(r => (r.category ?? 'other') !== 'food')
+    .reduce((s, r) => s + Number(r.amount), 0)
+}
+
 export async function spendSummary(): Promise<SpendSummary> {
   const db = getServiceClient()
   const todayStart = new Date().toISOString().slice(0, 10)
