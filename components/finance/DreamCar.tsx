@@ -58,6 +58,7 @@ export default function DreamCar({ netWorth, target, label }: { netWorth: number
   const count = useCountUp(netWorth, reduce)
 
   const [inView, setInView] = useState(false)
+  const [hovered, setHovered] = useState(false)
   const wrap = useRef<HTMLDivElement>(null)
 
   // Pause the render loop when off-screen.
@@ -69,35 +70,50 @@ export default function DreamCar({ netWorth, target, label }: { netWorth: number
   }, [])
 
   return (
-    <div ref={wrap} className="card rounded-sm p-4 overflow-hidden">
-      <div className="flex items-end justify-between mb-2">
-        <div>
-          <span className="card-label">DREAM CAR</span>
-          <p className="mono text-sm text-white">{label}</p>
-        </div>
-        <div className="text-right">
-          <p className="mono text-xl font-light text-white">{usd(count)} <span className="card-label">/ {usd(target)}</span></p>
-          <span className="mono text-xs" style={{ color: 'oklch(0.78 0.17 150)' }}>{(pct * 100).toFixed(1)}%</span>
-        </div>
-      </div>
+    <div
+      ref={wrap}
+      className="card rounded-sm p-4 overflow-hidden"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {/* cursive make/model — the only prominent text; everything else stays mysterious */}
+      <p
+        className="text-center leading-none pt-1 select-none"
+        style={{
+          fontFamily: '"Segoe Script", "Brush Script MT", "Snell Roundhand", cursive',
+          fontSize: '1.75rem',
+          color: 'oklch(0.93 0.02 250)',
+          textShadow: '0 0 22px oklch(0.82 0.13 225 / 0.32)',
+        }}
+      >
+        {label}
+      </p>
 
-      <div className="h-[180px] w-full">
+      {/* big cinematic turntable */}
+      <div className="h-[300px] w-full -mt-1">
         {inView && !reduce ? <CaymanScene progress={pct} /> : <SvgCar progress={pct} />}
       </div>
 
-      {/* progress rail — green = money */}
-      <div className="mt-2 h-2 bg-[oklch(0.1_0_0)] rounded-full overflow-hidden">
+      {/* slim, unlabeled green rail — hover reveals what it's tracking */}
+      <div className="mx-auto max-w-md h-1 bg-[oklch(0.12_0_0)] rounded-full overflow-hidden">
         <div
           className="h-full rounded-full"
           style={{
             width: `${pct * 100}%`,
-            background: 'linear-gradient(90deg, oklch(0.55 0.16 150), oklch(0.82 0.19 150))',
-            boxShadow: '0 0 10px oklch(0.78 0.17 150 / 0.8)',
+            background: 'linear-gradient(90deg, oklch(0.5 0.15 150), oklch(0.85 0.2 150))',
+            boxShadow: '0 0 12px oklch(0.78 0.17 150 / 0.85)',
             transition: reduce ? undefined : 'width 900ms cubic-bezier(0.22,1,0.36,1)',
           }}
         />
       </div>
-      <p className="card-label text-center text-[oklch(0.4_0_0)] mt-1">{usd(Math.max(0, target - netWorth))} to go</p>
+      <div className="h-4 mt-1 text-center">
+        {hovered && (
+          <span className="mono text-[10px] text-[oklch(0.55_0_0)]">
+            {usd(count)} <span className="text-[oklch(0.35_0_0)]">/</span> {usd(target)} ·{' '}
+            <span style={{ color: 'oklch(0.78 0.17 150)' }}>{(pct * 100).toFixed(1)}%</span>
+          </span>
+        )}
+      </div>
     </div>
   )
 }
