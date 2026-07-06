@@ -14,6 +14,7 @@ import SpendReadout from '@/components/finance/SpendReadout'
 import PaycheckBar from '@/components/finance/PaycheckBar'
 import FoodRing from '@/components/finance/FoodRing'
 import DreamCar from '@/components/finance/DreamCar'
+import BuyingPower from '@/components/finance/BuyingPower'
 import { RefreshCw, ChevronDown, Plus, Pencil } from 'lucide-react'
 
 // B&W 2.0 signal tokens — match --signal-up / --signal-down in globals.css
@@ -272,7 +273,7 @@ export default function FinancePage() {
                 <p className="mono text-sm" style={{ color: sign(v.total7dAbs) }}>
                   {arrow(v.total7dAbs)} {pct(v.total7dPct)} <span className="text-[oklch(0.50_0_0)]">/</span> {v.total7dAbs >= 0 ? '+' : ''}{usd(v.total7dAbs)}
                 </p>
-                <span className="card-label">7-DAY · incl. {usd(v.buyingPower)} cash</span>
+                <span className="card-label">7-DAY · <BuyingPower value={v.buyingPower} onSaved={load} /></span>
               </div>
               <button
                 onClick={() => { setEditTarget(null); setTradeOpen(true) }}

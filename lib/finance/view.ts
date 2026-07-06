@@ -16,13 +16,15 @@ export async function assembleView(blob: FinanceCacheBlob, now = new Date()): Pr
 
   // Cash = starting cash + real paychecks − daily (non-food) spend + food variance.
   const db0 = getServiceClient()
-  const { data: cfg0 } = await db0.from('fin_config').select('cash_seed, dream_target, dream_label').eq('id', 1).maybeSingle()
+  const { data: cfg0 } = await db0.from('fin_config').select('cash_seed, buying_power, dream_target, dream_label').eq('id', 1).maybeSingle()
   const cashSeed = Number(cfg0?.cash_seed ?? blob.bankSeed)
+  // Buying power (uninvested brokerage cash) is now a manual DB value, not the sheet.
+  const buyingPower = cfg0?.buying_power != null ? Number(cfg0.buying_power) : blob.buyingPower
   const income = await incomeTotal()
   const spendBurn = await nonFoodSpendTotal()
   const spend = await spendSummary()
   const bank = cashBalance(cashSeed, income, spendBurn, food.varianceSum)
-  const investmentsSide = blob.positionsValue + blob.buyingPower
+  const investmentsSide = blob.positionsValue + buyingPower
   const netWorth = investmentsSide + bank
 
   const outlooks: Record<string, Outlook> = {}
@@ -50,7 +52,7 @@ export async function assembleView(blob: FinanceCacheBlob, now = new Date()): Pr
     netWorth,
     investmentsSide,
     positionsValue: blob.positionsValue,
-    buyingPower: blob.buyingPower,
+    buyingPower,
     bankBalance: bank,
     income,
     spendToday: spend.today,

@@ -117,8 +117,10 @@ export async function refreshAll(): Promise<FinanceCacheBlob> {
   // Silent snapshot — uses the same transactional cash model as the view so every net-worth
   // figure across the site agrees (dashboard, FinanceCore, finance page).
   const varianceSum = await getClosedVarianceSum()
-  const { data: cfg } = await db.from('fin_config').select('cash_seed').eq('id', 1).maybeSingle()
+  const { data: cfg } = await db.from('fin_config').select('cash_seed, buying_power').eq('id', 1).maybeSingle()
   const cashSeed = Number(cfg?.cash_seed ?? bankSeed)
+  // Manual buying power from fin_config (falls back to the sheet value until set).
+  if (cfg?.buying_power != null) blob.buyingPower = Number(cfg.buying_power)
   const income = await incomeTotal()
   const spendBurn = await nonFoodSpendTotal()
   const bank = cashBalance(cashSeed, income, spendBurn, varianceSum)
