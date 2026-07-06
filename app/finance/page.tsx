@@ -11,6 +11,8 @@ import Scores, { type PortfolioScore } from '@/components/finance/Scores'
 import Recurring from '@/components/finance/Recurring'
 import CreditCard from '@/components/finance/CreditCard'
 import SpendReadout from '@/components/finance/SpendReadout'
+import PaycheckBar from '@/components/finance/PaycheckBar'
+import FoodRing from '@/components/finance/FoodRing'
 import DreamCar from '@/components/finance/DreamCar'
 import { RefreshCw, ChevronDown, Plus, Pencil } from 'lucide-react'
 
@@ -30,7 +32,8 @@ interface Holding {
 interface Outlook { ticker: string; summary: string; outlook: string }
 interface FinanceView {
   netWorth: number; investmentsSide: number; positionsValue: number; buyingPower: number
-  bankBalance: number; weeklyProfit: number; completedWeeks: number
+  bankBalance: number; income?: number; spendToday?: number; spendWeek?: number
+  weeklyProfit: number; completedWeeks: number
   total7dAbs: number; total7dPct: number
   holdings: Holding[]; top3: string[]
   sectorPie: { label: string; value: number }[]; capPie: { label: string; value: number }[]
@@ -166,6 +169,7 @@ export default function FinancePage() {
       const food = await res.json()
       setV({ ...v, food })
       setSpend('')
+      load() // refresh net worth (food variance can shift cash on week rollover)
     }
   }
 
@@ -182,6 +186,9 @@ export default function FinancePage() {
   return (
     <Shell>
       <div className="overflow-y-auto h-[calc(100vh-40px)] bg-black">
+        {/* discreet ambient data-streams down both page edges */}
+        <div className="side-rail side-rail-l" aria-hidden />
+        <div className="side-rail side-rail-r" aria-hidden />
         {/* Net-worth core organ — flashes green/red on daily P/L */}
         <FinanceCore className="h-[28vh] min-h-[200px]" />
         <HatchStrip height={6} />
@@ -202,13 +209,15 @@ export default function FinancePage() {
               </button>
             </div>
             <p className="mono text-3xl font-light text-white mt-1">{usd(v.netWorth, 2)}</p>
-            <p className="mono text-xs mt-1" style={{ color: GREEN }}>
-              weekly profit +{usd(v.weeklyProfit)} <span className="text-[oklch(0.45_0_0)]">· budgeted · wk {v.completedWeeks}/11</span>
+            <p className="mono text-xs mt-1">
+              <span style={{ color: GREEN }}>+{usd(v.income ?? 0)} in</span>
+              <span className="text-[oklch(0.45_0_0)]"> · </span>
+              <span style={{ color: RED }}>−{usd(v.spendWeek ?? 0)} wk spend</span>
             </p>
             {showSplit && (
               <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-[oklch(1_0_0/0.05)]">
                 <div>
-                  <p className="card-label">BANK</p>
+                  <p className="card-label">CASH</p>
                   <p className="mono text-sm text-white">{usd(v.bankBalance)}</p>
                 </div>
                 <div>
@@ -219,23 +228,20 @@ export default function FinancePage() {
             )}
           </div>
 
-          {/* food budget */}
+          {/* food budget — $150 weekly ring */}
           <div className="card rounded-sm p-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mb-2">
               <span className="card-label">FOOD BUDGET</span>
               <span className="card-label text-[oklch(0.40_0_0)]">SUN–SAT · {v.food.weekStart}</span>
             </div>
-            <p className="mono text-3xl font-light mt-1" style={{ color: v.food.remaining >= 0 ? 'white' : RED }}>
-              {usd(v.food.remaining)}
-            </p>
-            <p className="card-label mt-1">{usd(v.food.spent)} spent of {usd(v.food.budget)}</p>
+            <FoodRing spent={v.food.spent} budget={v.food.budget} />
             <div className="flex gap-2 mt-3">
               <input
                 value={spend}
                 onChange={e => setSpend(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && logSpend()}
                 inputMode="decimal"
-                placeholder="spent $__"
+                placeholder="food $__"
                 className="mono text-xs bg-[oklch(0.06_0_0)] border border-[oklch(1_0_0/0.08)] px-2 py-1 w-24 text-white placeholder:text-[oklch(0.40_0_0)] focus:outline-none focus:border-white/40"
               />
               <button onClick={logSpend} className="hud text-xs px-3 py-1 bg-white text-black hover:bg-[oklch(0.90_0_0)] transition-colors">
@@ -248,8 +254,11 @@ export default function FinancePage() {
           <CreditCard />
         </div>
 
-        {/* today / this-week spend readout (§10.3) */}
-        <SpendReadout />
+        {/* paychecks in · daily spend out (both flow into net worth) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <PaycheckBar onChange={load} />
+          <SpendReadout onChange={load} />
+        </div>
 
         {/* ---- investments terminal ---- */}
         <div className="card rounded-sm p-4 space-y-4">

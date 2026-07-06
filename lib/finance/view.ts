@@ -1,17 +1,27 @@
 import { getServiceClient } from '@/lib/supabase'
 import { ensureWeekAndRollover } from './food'
-import { completedWeeks, bankBalance } from './calc'
+import { completedWeeks, cashBalance } from './calc'
 import { getLatestBrief } from './marketBrief'
 import { getLatestScore } from './scoring'
+import { incomeTotal } from './income'
+import { nonFoodSpendTotal, spendSummary } from './spend'
 import type { FinanceCacheBlob } from './refresh'
 import type { FinanceView, Outlook } from './types'
 
-// Assemble the final render payload: combine the cached market blob with the date-dependent
-// bank accrual, the live food week, and any cached Gemini outlooks.
+// Assemble the final render payload: combine the cached market blob with the live cash flow
+// (paychecks − daily spend + food variance), the food week, and cached outlooks/brief/score.
 export async function assembleView(blob: FinanceCacheBlob, now = new Date()): Promise<FinanceView> {
   const food = await ensureWeekAndRollover(now)
   const weeks = completedWeeks(now)
-  const bank = bankBalance(blob.bankSeed, blob.weeklyProfit, weeks, food.varianceSum)
+
+  // Cash = starting cash + real paychecks − daily (non-food) spend + food variance.
+  const db0 = getServiceClient()
+  const { data: cfg0 } = await db0.from('fin_config').select('cash_seed, dream_target, dream_label').eq('id', 1).maybeSingle()
+  const cashSeed = Number(cfg0?.cash_seed ?? blob.bankSeed)
+  const income = await incomeTotal()
+  const spendBurn = await nonFoodSpendTotal()
+  const spend = await spendSummary()
+  const bank = cashBalance(cashSeed, income, spendBurn, food.varianceSum)
   const investmentsSide = blob.positionsValue + blob.buyingPower
   const netWorth = investmentsSide + bank
 
@@ -32,11 +42,9 @@ export async function assembleView(blob: FinanceCacheBlob, now = new Date()): Pr
   const marketBrief = await getLatestBrief()
   const score = await getLatestScore()
 
-  // Dream-car target (fin_config singleton; env override optional).
-  const db2 = getServiceClient()
-  const { data: cfg } = await db2.from('fin_config').select('dream_target, dream_label').eq('id', 1).maybeSingle()
-  const dreamTarget = Number(process.env.DREAM_TARGET ?? cfg?.dream_target ?? 88750)
-  const dreamLabel = cfg?.dream_label ?? '2022 Porsche 718 Cayman GTS 4.0'
+  // Dream-car target (env override optional).
+  const dreamTarget = Number(process.env.DREAM_TARGET ?? cfg0?.dream_target ?? 88750)
+  const dreamLabel = cfg0?.dream_label ?? '2022 Porsche 718 Cayman GTS 4.0'
 
   return {
     netWorth,
@@ -44,6 +52,9 @@ export async function assembleView(blob: FinanceCacheBlob, now = new Date()): Pr
     positionsValue: blob.positionsValue,
     buyingPower: blob.buyingPower,
     bankBalance: bank,
+    income,
+    spendToday: spend.today,
+    spendWeek: spend.thisWeek,
     weeklyProfit: blob.weeklyProfit,
     completedWeeks: weeks,
     total7dAbs: blob.total7d.abs,

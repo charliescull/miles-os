@@ -13,7 +13,7 @@ interface Summary {
 
 const usd = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(n)
 
-export default function SpendReadout() {
+export default function SpendReadout({ onChange }: { onChange?: () => void }) {
   const [s, setS] = useState<Summary | null>(null)
   const [amt, setAmt] = useState('')
   const [what, setWhat] = useState('')
@@ -31,7 +31,7 @@ export default function SpendReadout() {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ amount, merchant: what || undefined, category: what || undefined }),
     })
-    setAmt(''); setWhat(''); load()
+    setAmt(''); setWhat(''); await load(); onChange?.()
   }
   const field = 'mono text-xs bg-[oklch(0.06_0_0)] border border-[oklch(1_0_0/0.08)] px-2 py-1 text-white placeholder:text-[oklch(0.40_0_0)] focus:outline-none focus:border-[var(--jarvis)]'
 

@@ -83,7 +83,10 @@ export interface FinanceView {
   investmentsSide: number      // positionsValue + buyingPower
   positionsValue: number
   buyingPower: number
-  bankBalance: number
+  bankBalance: number      // now the transactional cash balance (seed + income − spend + food variance)
+  income: number           // total logged paychecks
+  spendToday: number
+  spendWeek: number
   weeklyProfit: number
   completedWeeks: number
   total7dAbs: number

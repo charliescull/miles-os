@@ -6,20 +6,20 @@ import { useState } from 'react'
 const GREEN = 'oklch(0.78 0.17 150)'
 const RED = 'oklch(0.64 0.21 27)'
 
-// Categorical palette for pies: chroma is reserved for state signals (spec §10
-// still applies — no gain/loss coloring here), so categories get a white→gray
-// luminance ramp instead of hues.
+// Vibrant categorical palette for the allocation pies (sector + market cap).
+// Distinct oklch hues, high-chroma but harmonized for a dark HUD so slices read
+// clearly against the void. Order chosen for good neighbor contrast.
 const PIE_COLORS = [
-  'oklch(0.96 0 0)',
-  'oklch(0.84 0 0)',
-  'oklch(0.72 0 0)',
-  'oklch(0.61 0 0)',
-  'oklch(0.51 0 0)',
-  'oklch(0.42 0 0)',
-  'oklch(0.34 0 0)',
-  'oklch(0.27 0 0)',
-  'oklch(0.21 0 0)',
-  'oklch(0.16 0 0)',
+  'oklch(0.80 0.14 225)', // cyan
+  'oklch(0.80 0.17 150)', // green
+  'oklch(0.83 0.15 85)',  // amber
+  'oklch(0.70 0.18 300)', // violet
+  'oklch(0.68 0.19 35)',  // red-orange
+  'oklch(0.72 0.15 260)', // blue
+  'oklch(0.80 0.13 190)', // teal
+  'oklch(0.72 0.19 350)', // magenta
+  'oklch(0.86 0.17 120)', // lime
+  'oklch(0.80 0.13 60)',  // gold
 ]
 
 function points(data: number[], w: number, h: number, pad = 2): string {
@@ -171,7 +171,7 @@ export function Donut({ slices, size = 140 }: { slices: { label: string; value: 
             style={{ transition: 'opacity 0.15s' }}
           />
         ))}
-        <text x={cx} y={cy - 4} textAnchor="middle" className="mono" fontSize="13" fill="oklch(0.96 0 0)">
+        <text x={cx} y={cy - 4} textAnchor="middle" className="mono" fontSize="13" fill={active ? PIE_COLORS[active.i % PIE_COLORS.length] : 'oklch(0.96 0 0)'}>
           {active ? `${active.pct.toFixed(0)}%` : ''}
         </text>
         <text x={cx} y={cy + 10} textAnchor="middle" fontSize="8" fill="oklch(0.55 0 0)" style={{ letterSpacing: '0.05em' }}>

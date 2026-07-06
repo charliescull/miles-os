@@ -10,11 +10,12 @@ import {
   sectorPie,
   capPie,
   computeWeeklyProfit,
-  completedWeeks,
-  bankBalance,
+  cashBalance,
   type MarketData,
 } from './calc'
 import { getClosedVarianceSum } from './food'
+import { incomeTotal } from './income'
+import { nonFoodSpendTotal } from './spend'
 import { generateOutlook } from './gemini'
 import { REFRESH_TTL_HOURS } from './constants'
 import type { Candle, EnrichedHolding, NewsHeadline, PieSlice } from './types'
@@ -113,11 +114,14 @@ export async function refreshAll(): Promise<FinanceCacheBlob> {
       { onConflict: 'cache_key' }
     )
 
-  // Silent snapshot (spec §6 — no UI table).
-  const now = new Date()
-  const weeks = completedWeeks(now)
+  // Silent snapshot — uses the same transactional cash model as the view so every net-worth
+  // figure across the site agrees (dashboard, FinanceCore, finance page).
   const varianceSum = await getClosedVarianceSum()
-  const bank = bankBalance(bankSeed, weeklyProfit, weeks, varianceSum)
+  const { data: cfg } = await db.from('fin_config').select('cash_seed').eq('id', 1).maybeSingle()
+  const cashSeed = Number(cfg?.cash_seed ?? bankSeed)
+  const income = await incomeTotal()
+  const spendBurn = await nonFoodSpendTotal()
+  const bank = cashBalance(cashSeed, income, spendBurn, varianceSum)
   const investmentsSide = blob.positionsValue + blob.buyingPower
   await db.from('fin_networth_snapshots').insert({
     net_worth: investmentsSide + bank,
