@@ -18,9 +18,7 @@ instead of marking it complete.
 - `npx eslint app/api/quick/route.ts app/m/page.tsx components/mobile/MobileCommandCenter.tsx lib/router/routeText.ts next.config.ts` — passed.
 - `npx tsc --noEmit` — passed.
 - `git diff --check` — passed.
-- `npm run build` — reaches application compilation, but the sandbox blocks the
-  existing Google Fonts downloads. This is an environment limitation, not a
-  reported TypeScript or application compilation error.
+- `npm run build` — passed locally on the candidate checkout.
 - Next.js 16 guidance was checked in
   `node_modules/next/dist/docs/01-app/03-api-reference/05-config/01-next-config-js/turbopack.md`
   and `node_modules/next/dist/docs/01-app/01-getting-started/15-route-handlers.md`.
@@ -77,7 +75,7 @@ Local checks after this hardening:
 - Focused ESLint on the changed route/router/domain files — passed.
 - `git diff --check` — passed.
 - `node --experimental-strip-types --test scripts/quick-capture-response.test.mjs` — all 3 passed.
-- `node_modules\\.bin\\next.cmd build` — blocked only by the sandbox denying existing Google Fonts downloads.
+- `node_modules\\.bin\\next.cmd build` — passed locally on the candidate checkout.
 
 The migration still requires deployment and disposable-database execution of
 the SQL regression/concurrency checks before release.
@@ -93,7 +91,7 @@ the SQL regression/concurrency checks before release.
   remote write and local mirror no longer creates a second event.
 - Focused TypeScript, ESLint, `git diff --check`, and quick-response tests pass.
 - Full lint remains blocked by the pre-existing 42-error legacy baseline; the
-  production build remains blocked only by unavailable Google Fonts downloads.
+  production build now passes locally.
 - Supabase deployment, disposable SQL/concurrency execution, and authenticated
   manual API/mobile checks remain required release evidence.
 
@@ -122,7 +120,7 @@ the SQL regression/concurrency checks before release.
   incremental compilation disabled, focused ESLint passes, and `git diff
   --check` passes.
 - Full lint still reports the known 42-error legacy baseline. Production build
-  still cannot fetch the existing Google Fonts in this sandbox. Supabase
+  passes locally. Supabase
   deployment, two-session concurrency, and authenticated manual checks remain
   not run.
 
