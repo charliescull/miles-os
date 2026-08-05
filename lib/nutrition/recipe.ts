@@ -69,13 +69,13 @@ export interface SavedRecipe extends MealAnalysis {
 }
 
 // Analyze, save to the recipe library, and merge the macros into today's nutrition log.
-export async function analyzeAndSaveRecipe(rawInput: string): Promise<SavedRecipe> {
+export async function analyzeAndSaveRecipe(rawInput: string, idempotencyKey?: string | null): Promise<SavedRecipe> {
   const analysis = await analyzeMeal(rawInput)
   const db = getServiceClient()
 
   const { data: recipe, error } = await db
     .from('recipes')
-    .insert({
+    .upsert({
       user_id: USER_ID,
       raw_input: rawInput,
       dish_name: analysis.dish_name,
@@ -88,10 +88,17 @@ export async function analyzeAndSaveRecipe(rawInput: string): Promise<SavedRecip
       score_tag: analysis.score_tag,
       rationale: analysis.rationale,
       taste_rating: null,
-    })
+      idempotency_key: idempotencyKey,
+    }, { onConflict: 'user_id,idempotency_key', ignoreDuplicates: true })
     .select()
-    .single()
+    .maybeSingle()
   if (error) throw new Error(error.message)
+  if (!recipe) {
+    const { data: existing, error: lookupError } = await db.from('recipes').select('*')
+      .eq('user_id', USER_ID).eq('idempotency_key', idempotencyKey).single()
+    if (lookupError || !existing) throw new Error(lookupError?.message ?? 'Recipe replay could not be resolved')
+    return existing as SavedRecipe
+  }
 
   // Merge into today's nutrition log so NutritionCard picks it up (same as /api/recipes POST).
   const today = localDateKey()

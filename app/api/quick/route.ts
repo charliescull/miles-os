@@ -19,7 +19,11 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}))
   const text = (typeof body.text === 'string' ? body.text : typeof body.q === 'string' ? body.q : '').trim()
   if (!text) return NextResponse.json({ error: 'text required' }, { status: 400 })
-  const idempotencyKey = req.headers.get('idempotency-key') ?? (typeof body.idempotency_key === 'string' ? body.idempotency_key : null)
+  const suppliedKey = req.headers.get('idempotency-key') ?? (typeof body.idempotency_key === 'string' ? body.idempotency_key : null)
+  const idempotencyKey = suppliedKey?.trim() || null
+  if (idempotencyKey && (idempotencyKey.length > 200 || !/^[A-Za-z0-9._:-]+$/.test(idempotencyKey))) {
+    return NextResponse.json({ error: 'invalid idempotency key' }, { status: 400 })
+  }
 
   try {
     const requestHash = idempotencyKey ? createHash('sha256').update(text, 'utf8').digest('hex') : null

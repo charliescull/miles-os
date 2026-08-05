@@ -61,6 +61,42 @@ cookies, tokens, or request contents:
 Until these database and deployment checks are completed, acceptance remains
 `FIX_REQUIRED` for release even though the local static checks pass.
 
+## Replay side-effect hardening
+
+The implementation now carries the mobile idempotency key into the common
+domain writes that can otherwise append on a stale-lease retry: notes, tasks,
+appointments, and recipes. Those tables receive additive nullable columns and
+unique `(user_id, idempotency_key)` indexes. Food-log meals retain the key in
+their existing daily-log JSON and skip an existing keyed meal. Calendar event
+creation uses a deterministic event id derived from the key, so a retry cannot
+create a second remote event after a crash between Google and Supabase writes.
+
+Local checks after this hardening:
+
+- `node_modules\\.bin\\tsc.cmd --noEmit` — passed.
+- Focused ESLint on the changed route/router/domain files — passed.
+- `git diff --check` — passed.
+- `node --experimental-strip-types --test scripts/quick-capture-response.test.mjs` — all 3 passed.
+- `node_modules\\.bin\\next.cmd build` — blocked only by the sandbox denying existing Google Fonts downloads.
+
+The migration still requires deployment and disposable-database execution of
+the SQL regression/concurrency checks before release.
+
+## Final review follow-up in this checkout
+
+- Replayed `raw_captures` inserts now recover the existing keyed capture row
+  after a crash, allowing the same request to complete embedding and audit work
+  instead of treating the unique-index conflict as a new failure.
+- Idempotent Google Calendar writes now use a SHA-256-derived valid event ID and
+  reconcile a `409 Conflict` by fetching that existing event. Punctuation-only
+  keys therefore cannot normalize to an empty ID, and a crash between the
+  remote write and local mirror no longer creates a second event.
+- Focused TypeScript, ESLint, `git diff --check`, and quick-response tests pass.
+- Full lint remains blocked by the pre-existing 42-error legacy baseline; the
+  production build remains blocked only by unavailable Google Fonts downloads.
+- Supabase deployment, disposable SQL/concurrency execution, and authenticated
+  manual API/mobile checks remain required release evidence.
+
 ## Follow-up hardening in this checkout
 
 - Claim ownership checks now renew the lease with a conditional token-matched

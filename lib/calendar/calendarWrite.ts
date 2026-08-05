@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { createHash } from 'node:crypto'
 import { getGoogleAccessToken } from '@/lib/google/auth'
 import { localDateKey } from '@/lib/localDateKey'
 
@@ -34,6 +35,48 @@ export interface CreatedEvent {
   allDay: boolean
 }
 
+interface GoogleEvent {
+  id?: string
+  htmlLink?: string
+  summary?: string
+  start?: { dateTime?: string; date?: string }
+  end?: { dateTime?: string; date?: string }
+}
+
+export function calendarEventIdForKey(idempotencyKey: string): string {
+  // Google event IDs have a restricted alphabet. Hashing also guarantees that
+  // punctuation-only client keys cannot collapse to an empty or invalid ID.
+  return createHash('sha256').update(idempotencyKey, 'utf8').digest('hex')
+}
+
+function shapeCreatedEvent(json: GoogleEvent, allDay: boolean): CreatedEvent {
+  const id = json.id
+  const htmlLink = json.htmlLink
+  const summary = json.summary
+  const start = json.start?.dateTime ?? json.start?.date
+  const end = json.end?.dateTime ?? json.end?.date
+  if (!id || !htmlLink || !summary || !start || !end) throw new Error('Calendar response was missing event fields')
+  return {
+    id,
+    htmlLink,
+    summary,
+    start,
+    end,
+    allDay,
+  }
+}
+
+async function getCalendarEvent(eventId: string, token: string): Promise<CreatedEvent | null> {
+  const res = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId())}/events/${encodeURIComponent(eventId)}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  )
+  if (res.status === 404 || res.status === 410) return null
+  const json = await res.json() as GoogleEvent & { error?: { message?: string } }
+  if (!res.ok) throw new Error(`Calendar lookup failed (${res.status}): ${json?.error?.message ?? 'unknown'}`)
+  return shapeCreatedEvent(json, !!json.start?.date)
+}
+
 // Add one hour to a 'YYYY-MM-DDTHH:mm:ss' local datetime string (no TZ math — Google applies tz).
 function plusOneHour(local: string): string {
   const m = local.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/)
@@ -48,7 +91,7 @@ function nextDay(date: string): string {
   return d.toISOString().slice(0, 10)
 }
 
-export async function createCalendarEvent(input: EventInput): Promise<CreatedEvent> {
+export async function createCalendarEvent(input: EventInput, idempotencyKey?: string | null): Promise<CreatedEvent> {
   if (!input.summary?.trim()) throw new Error('event summary required')
   if (!input.start?.trim()) throw new Error('event start required')
 
@@ -59,6 +102,7 @@ export async function createCalendarEvent(input: EventInput): Promise<CreatedEve
     ...(input.location ? { location: input.location } : {}),
     ...(input.recurrence && input.recurrence.length ? { recurrence: input.recurrence } : {}),
   }
+  if (idempotencyKey) body.id = calendarEventIdForKey(idempotencyKey)
 
   if (allDay) {
     const startDate = input.start.slice(0, 10)
@@ -81,17 +125,16 @@ export async function createCalendarEvent(input: EventInput): Promise<CreatedEve
       body: JSON.stringify(body),
     }
   )
-  const json = await res.json()
-  if (!res.ok) throw new Error(`Calendar create failed (${res.status}): ${json?.error?.message ?? 'unknown'}`)
-
-  return {
-    id: json.id,
-    htmlLink: json.htmlLink,
-    summary: json.summary,
-    start: json.start?.dateTime ?? json.start?.date,
-    end: json.end?.dateTime ?? json.end?.date,
-    allDay,
+  const json = await res.json() as GoogleEvent & { error?: { message?: string } }
+  if (!res.ok) {
+    if (res.status === 409 && idempotencyKey && body.id) {
+      const existing = await getCalendarEvent(String(body.id), token)
+      if (existing) return existing
+    }
+    throw new Error(`Calendar create failed (${res.status}): ${json?.error?.message ?? 'unknown'}`)
   }
+
+  return shapeCreatedEvent(json, allDay)
 }
 
 // PATCH just the start/end of an existing event (the "change appointment" command).

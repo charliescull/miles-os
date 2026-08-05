@@ -31,6 +31,25 @@ create unique index if not exists raw_captures_user_source_idempotency_idx
   on raw_captures(user_id, source, idempotency_key)
   where idempotency_key is not null;
 
+-- Domain writes use the same key as the request ledger. These are additive so
+-- retries after a worker crash cannot append a second row after reclaiming the
+-- lease. Existing rows remain valid and continue to accept non-mobile writes.
+alter table notes add column if not exists idempotency_key text;
+create unique index if not exists notes_user_idempotency_idx
+  on notes(user_id, idempotency_key);
+
+alter table tasks add column if not exists idempotency_key text;
+create unique index if not exists tasks_user_idempotency_idx
+  on tasks(user_id, idempotency_key);
+
+alter table appointments add column if not exists idempotency_key text;
+create unique index if not exists appointments_user_idempotency_idx
+  on appointments(user_id, idempotency_key);
+
+alter table recipes add column if not exists idempotency_key text;
+create unique index if not exists recipes_user_idempotency_idx
+  on recipes(user_id, idempotency_key);
+
 -- Claim creation and lease reclamation must happen in one database transaction.
 -- The caller must only execute side effects when claimed=true. The row lock makes
 -- concurrent retries observe one winner, even when a previous lease is stale.

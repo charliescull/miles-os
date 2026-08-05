@@ -73,11 +73,25 @@ async function updateCaptureClaim(
   if (!data) throw new Error('Capture claim lost; retry with the same idempotency key')
 }
 
+async function insertOrGetCapture(values: Record<string, unknown>, source: string, idempotencyKey: string | null) {
+  const db = getServiceClient()
+  const { data, error } = await db.from('raw_captures').insert(values).select().maybeSingle()
+  if (!error) return data
+  if (!idempotencyKey) throw error
+
+  // A worker can crash after this insert but before the rest of the pipeline.
+  // Replays must reuse that capture row so embedding/audit can still finish.
+  const { data: existing, error: lookupError } = await db.from('raw_captures')
+    .select('*').eq('user_id', USER_ID).eq('source', source).eq('idempotency_key', idempotencyKey).maybeSingle()
+  if (lookupError) throw lookupError
+  if (!existing) throw error
+  return existing
+}
+
 async function recordCapture(text: string, routedTo: string, source: string, routedId: string | null = null, idempotencyKey: string | null = null, processingToken: string | null = null) {
   try {
     await assertCaptureClaim(source, idempotencyKey, processingToken)
-    const db = getServiceClient()
-    const { data } = await db.from('raw_captures').insert({
+    const data = await insertOrGetCapture({
       user_id: USER_ID,
       source,
       raw_text: text,
@@ -86,7 +100,7 @@ async function recordCapture(text: string, routedTo: string, source: string, rou
       routed_to: routedTo,
       routed_id: routedId,
       idempotency_key: idempotencyKey,
-    }).select().single()
+    }, source, idempotencyKey)
     embedAndStore(text, 'capture', data?.id ?? null)
   } catch (err) {
     // Claim loss is a fencing signal, not a best-effort telemetry failure. Do
@@ -172,16 +186,18 @@ async function routeTextMessageOnce(text: string, source: string, idempotencyKey
       await assertClaim()
       const db = getServiceClient()
       const today = localDateKey()
-      const { data } = await db.from('notes').insert({
+      const { data, error } = await db.from('notes').upsert({
         user_id: USER_ID, note_date: today, text: cmd.text,
-      }).select().single()
+        idempotency_key: idempotencyKey,
+      }, { onConflict: 'user_id,idempotency_key', ignoreDuplicates: true }).select().maybeSingle()
+      if (error) throw error
       await recordCapture(text, 'note', source, data?.id ?? null, idempotencyKey, processingToken)
       return { routedTo: 'note', confirmation: `🗒️ *Noted:* ${cmd.text}`, isCapture: false }
     }
 
     if (cmd.kind === 'set_appointment') {
       await assertClaim()
-      const appt = await createAppointmentFromText(cmd.summary, cmd.when, cmd.freq)
+      const appt = await createAppointmentFromText(cmd.summary, cmd.when, cmd.freq, idempotencyKey)
       if (appt) {
         await recordCapture(text, 'calendar', source, appt.id, idempotencyKey, processingToken)
         const when = appt.all_day ? appt.start_local : appt.start_local.replace('T', ' ').slice(0, 16)
@@ -267,7 +283,7 @@ async function routeTextMessageOnce(text: string, source: string, idempotencyKey
     const event = await parseEventFromText(text)
     if (event) {
       await assertClaim()
-      const created = await createCalendarEvent(event)
+      const created = await createCalendarEvent(event, idempotencyKey)
       await recordCapture(text, 'calendar', source, null, idempotencyKey, processingToken)
       const when = created.allDay ? created.start : created.start.replace('T', ' ').slice(0, 16)
       return { routedTo: 'calendar', confirmation: `📅 *Event created:* ${created.summary}\n${when}\n${created.htmlLink}`, isCapture: false }
@@ -277,7 +293,7 @@ async function routeTextMessageOnce(text: string, source: string, idempotencyKey
 
   if (intent === 'food') {
     await assertClaim()
-    const { meal, totals } = await logStandardFood(text)
+    const { meal, totals } = await logStandardFood(text, undefined, idempotencyKey)
     await recordCapture(text, 'food', source, null, idempotencyKey, processingToken)
     return { routedTo: 'food', confirmation: foodConfirm(meal, totals), isCapture: false }
   }
@@ -285,7 +301,7 @@ async function routeTextMessageOnce(text: string, source: string, idempotencyKey
   if (intent === 'recipe') {
     try {
       await assertClaim()
-      const r = await analyzeAndSaveRecipe(text)
+      const r = await analyzeAndSaveRecipe(text, idempotencyKey)
       await recordCapture(text, 'recipe', source, r.id, idempotencyKey, processingToken)
       return {
         routedTo: 'recipe',
@@ -307,20 +323,20 @@ async function captureText(text: string, source: string, idempotencyKey: string 
   await assertCaptureClaim(source, idempotencyKey, processingToken)
   const classification = await classifyCapture(text)
 
-  const { data: capture } = await db.from('raw_captures').insert({
+  const capture = await insertOrGetCapture({
     user_id: USER_ID,
     source,
     raw_text: text,
     classification,
     llm_source: 'anthropic',
     routed_to: classification.kind,
-    idempotency_key: idempotencyKey,
-  }).select().single()
+      idempotency_key: idempotencyKey,
+  }, source, idempotencyKey)
 
   let routedId: string | null = null
   if (['task', 'blocker', 'content', 'decision'].includes(classification.kind)) {
     await assertCaptureClaim(source, idempotencyKey, processingToken)
-    const { data: task } = await db.from('tasks').insert({
+  const { data: task, error: taskError } = await db.from('tasks').upsert({
       user_id: USER_ID,
       title: classification.summary,
       urgency: classification.urgency,
@@ -330,7 +346,9 @@ async function captureText(text: string, source: string, idempotencyKey: string 
       kind: classification.kind,
       status: classification.kind === 'blocker' ? 'blocked' : 'open',
       priority_score: classification.is_key ? 100 : 50,
-    }).select().single()
+      idempotency_key: idempotencyKey,
+    }, { onConflict: 'user_id,idempotency_key', ignoreDuplicates: true }).select().maybeSingle()
+    if (taskError) throw taskError
     if (task) routedId = task.id
   } else {
     // note / habit → today's daily_logs.notes.captures
