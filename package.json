@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:quick": "node --experimental-strip-types --test scripts/quick-capture-response.test.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.98.0",

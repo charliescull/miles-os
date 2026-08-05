@@ -75,6 +75,7 @@ export async function createAppointment(opts: {
   allDay?: boolean
   location?: string
   recurrence?: string | null
+  idempotencyKey?: string | null
 }): Promise<Appointment> {
   const allDay = opts.allDay ?? !opts.start.includes('T')
   const input: EventInput = {
@@ -88,14 +89,14 @@ export async function createAppointment(opts: {
 
   let googleId: string | null = null
   try {
-    const created = await createCalendarEvent(input)
+    const created = await createCalendarEvent(input, opts.idempotencyKey)
     googleId = created.id
   } catch (err) {
     console.error('Google Calendar create failed (mirroring only):', err)
   }
 
   const db = getServiceClient()
-  const { data } = await db.from('appointments').insert({
+  const { data: inserted, error } = await db.from('appointments').upsert({
     user_id: USER_ID,
     google_event_id: googleId,
     summary: opts.summary,
@@ -104,15 +105,22 @@ export async function createAppointment(opts: {
     all_day: allDay,
     recurrence: opts.recurrence ?? null,
     location: opts.location ?? null,
-  }).select().single()
+    idempotency_key: opts.idempotencyKey ?? null,
+  }, { onConflict: 'user_id,idempotency_key', ignoreDuplicates: true }).select().maybeSingle()
+  if (error) throw new Error(error.message)
+  if (!inserted && opts.idempotencyKey) {
+    const { data: existing } = await db.from('appointments').select('*').eq('user_id', USER_ID).eq('idempotency_key', opts.idempotencyKey).single()
+    return existing as Appointment
+  }
 
-  return data as Appointment
+  return inserted as Appointment
 }
 
 export async function createAppointmentFromText(
   summary: string,
   whenText: string,
   freq?: string | null,
+  idempotencyKey?: string | null,
 ): Promise<Appointment | null> {
   const parsed = await parseEventFromText(`${summary} at ${whenText}`)
   if (!parsed) return null
@@ -123,6 +131,7 @@ export async function createAppointmentFromText(
     allDay: parsed.allDay,
     location: parsed.location,
     recurrence: parseRecurrence(freq),
+    idempotencyKey,
   })
 }
 

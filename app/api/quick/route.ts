@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isAuthenticatedFromRequest } from '@/lib/auth'
 import { routeTextMessage } from '@/lib/router/routeText'
+import { quickCaptureHttpStatus } from '@/lib/quickCaptureResponse'
+import { createHash } from 'node:crypto'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,12 +19,25 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}))
   const text = (typeof body.text === 'string' ? body.text : typeof body.q === 'string' ? body.q : '').trim()
   if (!text) return NextResponse.json({ error: 'text required' }, { status: 400 })
+  const suppliedKey = req.headers.get('idempotency-key') ?? (typeof body.idempotency_key === 'string' ? body.idempotency_key : null)
+  const idempotencyKey = suppliedKey?.trim() || null
+  if (idempotencyKey && (idempotencyKey.length > 200 || !/^[A-Za-z0-9._:-]+$/.test(idempotencyKey))) {
+    return NextResponse.json({ error: 'invalid idempotency key' }, { status: 400 })
+  }
 
   try {
-    const result = await routeTextMessage(text, 'action_button')
+    const requestHash = idempotencyKey ? createHash('sha256').update(text, 'utf8').digest('hex') : null
+    const result = await routeTextMessage(text, 'action_button', idempotencyKey, requestHash)
     const message = result.confirmation.replace(/[*_`]/g, '') // strip Markdown for plain display
-    return NextResponse.json({ ok: true, routedTo: result.routedTo, message }, { status: 201 })
+    const state = result.idempotency ?? 'processed'
+    // A completed first submission is created now (201); only a completed
+    // replay is an existing resource (200). In-progress replays stay retryable.
+    const status = quickCaptureHttpStatus(result.idempotency)
+    return NextResponse.json({ ok: true, state, routedTo: result.routedTo, message }, { status })
   } catch (e) {
+    if (e instanceof Error && e.message === 'Idempotency key was reused for different content') {
+      return NextResponse.json({ error: e.message }, { status: 409 })
+    }
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Quick capture failed' }, { status: 500 })
   }
 }

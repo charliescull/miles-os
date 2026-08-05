@@ -18,6 +18,7 @@ export interface LoggedMeal {
   carbs: number
   fat: number
   estimated: boolean
+  idempotency_key?: string
 }
 
 function timeLabel(): string {
@@ -61,7 +62,8 @@ function sumMeals(meals: LoggedMeal[]): Macros {
 // Estimate (unless macros supplied) and append a meal to today's nutrition log.
 export async function logStandardFood(
   description: string,
-  macrosOverride?: Macros
+  macrosOverride?: Macros,
+  idempotencyKey?: string | null,
 ): Promise<{ meal: LoggedMeal; totals: Macros; date: string }> {
   const macros = macrosOverride ?? (await estimateMacros(description))
   const date = localDateKey()
@@ -81,6 +83,8 @@ export async function logStandardFood(
     : {}
 
   const existingMeals: LoggedMeal[] = currentNotes?.nutrition?.meals ?? []
+  const existingMeal = idempotencyKey ? existingMeals.find((item) => item.idempotency_key === idempotencyKey) : null
+  if (existingMeal) return { meal: existingMeal, totals: sumMeals(existingMeals), date }
   const meal: LoggedMeal = {
     id: crypto.randomUUID(),
     time: timeLabel(),
@@ -90,6 +94,7 @@ export async function logStandardFood(
     carbs: macros.carbs,
     fat: macros.fat,
     estimated: true,
+    ...(idempotencyKey ? { idempotency_key: idempotencyKey } : {}),
   }
   const meals = [...existingMeals, meal]
 
