@@ -188,6 +188,18 @@ body::after {
 }
 .card:hover { border-color: var(--card-border-hover); }
 
+/* Desktop command center: a warmer, more legible information layer above the
+   dense work panels. The existing mobile layout intentionally stays compact. */
+.command-overview__hero,
+.command-overview__panel {
+  background:
+    linear-gradient(135deg, oklch(0.095 0.025 230 / 0.96), oklch(0.035 0 0) 72%),
+    var(--card-bg);
+  border: 1px solid oklch(0.82 0.13 225 / 0.18);
+}
+.command-overview__hero { border-left: 2px solid var(--signal-up); }
+.command-overview__panel { border-top-color: oklch(0.82 0.13 225 / 0.24); }
+
 .card-label {
   font-family: var(--font-hud), var(--font-geist-mono), monospace;
   font-size: 0.62rem;

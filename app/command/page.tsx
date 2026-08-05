@@ -2,12 +2,14 @@ import Shell from '@/components/dashboard/Shell'
 import TaskList from '@/components/command/TaskList'
 import CommandCalendar from '@/components/command/CommandCalendar'
 import NotesPad from '@/components/command/NotesPad'
+import CommandOverview from '@/components/command/CommandOverview'
 
 // COMMAND CENTER — replaces the old CRM. Telegram-fed: appointments → schedule
 // (Google + mirror), actionable items → neon task rail, "X …" → daily notepad.
 export default function CommandPage() {
   return (
     <Shell>
+      <CommandOverview />
       <div
         className="flex flex-col lg:grid lg:h-[calc(100vh-40px)]"
         style={{
