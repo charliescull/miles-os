@@ -97,6 +97,35 @@ the SQL regression/concurrency checks before release.
 - Supabase deployment, disposable SQL/concurrency execution, and authenticated
   manual API/mobile checks remain required release evidence.
 
+## Generic capture replay hardening
+
+- Generic note/habit captures stored in `daily_logs.notes.captures` now carry
+  the mobile idempotency key and skip an existing entry with that key.
+- Daily-log, raw-capture mirror, and audit writes now surface persistence
+  errors instead of silently reporting a successful capture.
+- The quick-capture response/dedupe suite passes all five tests.
+- Local TypeScript, focused ESLint, and `git diff --check` pass. Full lint
+  remains the 42-error legacy baseline; build remains blocked only by Google
+  Fonts downloads. Supabase deployment, concurrency, and authenticated manual
+  checks remain **not run** and are still required for release.
+
+## Daily-log read failure correction
+
+- The generic note/habit capture path now uses `maybeSingle()` and propagates
+  `daily_logs` read errors before constructing replacement JSON. A transient
+  read failure therefore aborts the capture instead of upserting an empty
+  notes object over the existing day.
+- Daily-log merging is covered by a pure regression test that verifies
+  unrelated habit/nutrition fields survive, while keyed replay and historical
+  unkeyed append behavior remain covered.
+- Fresh local checks: six quick-capture tests pass, TypeScript passes with
+  incremental compilation disabled, focused ESLint passes, and `git diff
+  --check` passes.
+- Full lint still reports the known 42-error legacy baseline. Production build
+  still cannot fetch the existing Google Fonts in this sandbox. Supabase
+  deployment, two-session concurrency, and authenticated manual checks remain
+  not run.
+
 ## Follow-up hardening in this checkout
 
 - Claim ownership checks now renew the lease with a conditional token-matched

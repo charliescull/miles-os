@@ -13,6 +13,7 @@ import { getQuote } from '@/lib/finance/finnhub'
 import { addSpend } from '@/lib/finance/spend'
 import { localDateKey } from '@/lib/localDateKey'
 import { randomUUID } from 'node:crypto'
+import { mergeDailyLogCapture, type DailyLogNotes } from './captureDedupe'
 
 // Single source of truth for routing a free-form TEXT message into the right place. Used by BOTH
 // the Telegram webhook (text + transcribed voice) and the /api/quick endpoint (iOS Action Button
@@ -353,36 +354,44 @@ async function captureText(text: string, source: string, idempotencyKey: string 
   } else {
     // note / habit → today's daily_logs.notes.captures
     const today = localDateKey()
-    const { data: existing } = await db
-      .from('daily_logs').select('notes').eq('user_id', USER_ID).eq('log_date', today).single()
+    const { data: existing, error: dailyLogReadError } = await db
+      .from('daily_logs').select('notes').eq('user_id', USER_ID).eq('log_date', today).maybeSingle()
+    if (dailyLogReadError) throw dailyLogReadError
     const notes = existing?.notes
       ? (typeof existing.notes === 'string' ? JSON.parse(existing.notes) : existing.notes)
       : {}
-    const capturesList = notes.captures ?? []
-    capturesList.push({ id: capture?.id, text, ts: new Date().toISOString() })
+    const mergedNotes = mergeDailyLogCapture(notes as DailyLogNotes, {
+      id: capture?.id,
+      text,
+      ts: new Date().toISOString(),
+      ...(idempotencyKey ? { idempotency_key: idempotencyKey } : {}),
+    })
     await assertCaptureClaim(source, idempotencyKey, processingToken)
-    await db.from('daily_logs').upsert({
+    const { error: dailyLogError } = await db.from('daily_logs').upsert({
       user_id: USER_ID,
       log_date: today,
-      notes: JSON.stringify({ ...notes, captures: capturesList }),
+      notes: JSON.stringify(mergedNotes),
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id,log_date' })
+    if (dailyLogError) throw dailyLogError
   }
 
   if (capture?.id && routedId) {
-    await db.from('raw_captures').update({ routed_id: routedId }).eq('id', capture.id)
+    const { error: captureUpdateError } = await db.from('raw_captures').update({ routed_id: routedId }).eq('id', capture.id)
+    if (captureUpdateError) throw captureUpdateError
   }
 
   await assertCaptureClaim(source, idempotencyKey, processingToken)
   embedAndStore(text, 'capture', capture?.id ?? null)
 
-  await db.from('audit_log').insert({
+  const { error: auditError } = await db.from('audit_log').insert({
     user_id: USER_ID,
     action: 'capture',
     resource_type: 'raw_captures',
     resource_id: capture?.id,
     metadata: { kind: classification.kind, urgency: classification.urgency, source },
   })
+  if (auditError) throw auditError
 
   const emoji = { task: '✅', blocker: '🚧', decision: '🤔', content: '📝', note: '📌', habit: '💪' }[classification.kind] ?? '📌'
   const confirmation = `${emoji} *${classification.kind.toUpperCase()}* captured\n\n_${classification.summary}_\n\nUrgency: *${classification.urgency.replace('_', ' ')}*`
