@@ -12,6 +12,7 @@ import { applyTrade, getOpenShares } from '@/lib/finance/holdings'
 import { getQuote } from '@/lib/finance/finnhub'
 import { addSpend } from '@/lib/finance/spend'
 import { localDateKey } from '@/lib/localDateKey'
+import { randomUUID } from 'node:crypto'
 
 // Single source of truth for routing a free-form TEXT message into the right place. Used by BOTH
 // the Telegram webhook (text + transcribed voice) and the /api/quick endpoint (iOS Action Button
@@ -34,8 +35,23 @@ const CAPTURE_KINDS = ['task', 'blocker', 'content', 'decision', 'note', 'habit'
 
 // Best-effort: record a handled message into raw_captures + memory embeddings so semantic search
 // covers every branch, not just the capture pipeline.
-async function recordCapture(text: string, routedTo: string, source: string, routedId: string | null = null) {
+async function assertCaptureClaim(source: string, idempotencyKey: string | null, processingToken: string | null) {
+  if (!idempotencyKey) return
+  const { data, error } = await getServiceClient()
+    .from('capture_requests')
+    .select('status')
+    .eq('user_id', USER_ID)
+    .eq('source', source)
+    .eq('idempotency_key', idempotencyKey)
+    .eq('processing_token', processingToken)
+    .maybeSingle()
+  if (error) throw error
+  if (data?.status !== 'processing') throw new Error('Capture claim lost; retry with the same idempotency key')
+}
+
+async function recordCapture(text: string, routedTo: string, source: string, routedId: string | null = null, idempotencyKey: string | null = null, processingToken: string | null = null) {
   try {
+    await assertCaptureClaim(source, idempotencyKey, processingToken)
     const db = getServiceClient()
     const { data } = await db.from('raw_captures').insert({
       user_id: USER_ID,
@@ -45,9 +61,13 @@ async function recordCapture(text: string, routedTo: string, source: string, rou
       llm_source: 'anthropic',
       routed_to: routedTo,
       routed_id: routedId,
+      idempotency_key: idempotencyKey,
     }).select().single()
     embedAndStore(text, 'capture', data?.id ?? null)
   } catch (err) {
+    // Claim loss is a fencing signal, not a best-effort telemetry failure. Do
+    // not let a worker that has been replaced report success to its caller.
+    if (err instanceof Error && err.message.startsWith('Capture claim lost')) throw err
     console.error('recordCapture failed:', err)
   }
 }
@@ -56,24 +76,62 @@ function foodConfirm(meal: LoggedMeal, totals: Macros): string {
   return `🍽️ *Logged:* ${meal.name}\n${meal.kcal} kcal · ${meal.protein}P / ${meal.carbs}C / ${meal.fat}F\n\n_Today:_ ${totals.kcal} kcal · ${totals.protein}P / ${totals.carbs}C / ${totals.fat}F`
 }
 
-export async function routeTextMessage(text: string, source = 'web'): Promise<RouteResult> {
+export async function routeTextMessage(text: string, source = 'web', idempotencyKey: string | null = null, requestHash: string | null = null): Promise<RouteResult> {
+  const processingToken = idempotencyKey ? randomUUID() : null
+  if (idempotencyKey) {
+    const db = getServiceClient()
+    const { data, error } = await db.rpc('claim_capture_request', {
+      p_user_id: USER_ID,
+      p_source: source,
+      p_idempotency_key: idempotencyKey,
+      p_request_hash: requestHash,
+      p_processing_token: processingToken,
+      p_lease_seconds: 900,
+    })
+    if (error) throw error
+    const claim = Array.isArray(data) ? data[0] : data
+    if (!claim?.claimed) return { routedTo: 'note', confirmation: 'Already processed or in progress.', isCapture: false }
+  }
+  const heartbeat = idempotencyKey ? setInterval(() => {
+    void getServiceClient().from('capture_requests').update({ updated_at: new Date().toISOString() })
+      .eq('user_id', USER_ID).eq('source', source).eq('idempotency_key', idempotencyKey).eq('processing_token', processingToken)
+  }, 30_000) : null
+  try {
+    const result = await routeTextMessageOnce(text, source, idempotencyKey, processingToken)
+    await assertCaptureClaim(source, idempotencyKey, processingToken)
+    if (idempotencyKey) await getServiceClient().from('capture_requests').update({ status: 'completed', completed_at: new Date().toISOString(), updated_at: new Date().toISOString(), last_error: null }).eq('user_id', USER_ID).eq('source', source).eq('idempotency_key', idempotencyKey).eq('processing_token', processingToken)
+    return result
+  } catch (error) {
+    if (idempotencyKey) await getServiceClient().from('capture_requests').update({ status: 'failed', updated_at: new Date().toISOString(), last_error: error instanceof Error ? error.message.slice(0, 500) : 'Capture failed' }).eq('user_id', USER_ID).eq('source', source).eq('idempotency_key', idempotencyKey).eq('processing_token', processingToken)
+    throw error
+  } finally {
+    if (heartbeat) clearInterval(heartbeat)
+  }
+}
+
+async function routeTextMessageOnce(text: string, source: string, idempotencyKey: string | null, processingToken: string | null): Promise<RouteResult> {
+  // Every mutating branch checks the fencing token immediately before its work. A
+  // reclaimed request can therefore not continue using the old worker's claim.
+  const assertClaim = () => assertCaptureClaim(source, idempotencyKey, processingToken)
   // 0. Explicit command grammar (deterministic, runs before the LLM router).
   const cmd = parseCommand(text)
   if (cmd) {
     if (cmd.kind === 'note') {
+      await assertClaim()
       const db = getServiceClient()
       const today = localDateKey()
       const { data } = await db.from('notes').insert({
         user_id: USER_ID, note_date: today, text: cmd.text,
       }).select().single()
-      await recordCapture(text, 'note', source, data?.id ?? null)
+      await recordCapture(text, 'note', source, data?.id ?? null, idempotencyKey, processingToken)
       return { routedTo: 'note', confirmation: `🗒️ *Noted:* ${cmd.text}`, isCapture: false }
     }
 
     if (cmd.kind === 'set_appointment') {
+      await assertClaim()
       const appt = await createAppointmentFromText(cmd.summary, cmd.when, cmd.freq)
       if (appt) {
-        await recordCapture(text, 'calendar', source, appt.id)
+        await recordCapture(text, 'calendar', source, appt.id, idempotencyKey, processingToken)
         const when = appt.all_day ? appt.start_local : appt.start_local.replace('T', ' ').slice(0, 16)
         const rep = appt.recurrence ? `\n_repeats: ${appt.recurrence.replace('FREQ=', '').toLowerCase()}_` : ''
         return { routedTo: 'calendar', confirmation: `📅 *Appointment set:* ${appt.summary}\n${when}${rep}`, isCapture: false }
@@ -82,9 +140,10 @@ export async function routeTextMessage(text: string, source = 'web'): Promise<Ro
     }
 
     if (cmd.kind === 'change_appointment') {
+      await assertClaim()
       const appt = await changeAppointmentTime(cmd.summary, cmd.newWhen)
       if (appt) {
-        await recordCapture(text, 'calendar', source, appt.id)
+        await recordCapture(text, 'calendar', source, appt.id, idempotencyKey, processingToken)
         const when = appt.all_day ? appt.start_local : appt.start_local.replace('T', ' ').slice(0, 16)
         return { routedTo: 'calendar', confirmation: `🔁 *Appointment moved:* ${appt.summary}\nnow ${when}`, isCapture: false }
       }
@@ -92,9 +151,10 @@ export async function routeTextMessage(text: string, source = 'web'): Promise<Ro
     }
 
     if (cmd.kind === 'cancel_appointment') {
+      await assertClaim()
       const appt = await cancelAppointment(cmd.summary, cmd.when)
       if (appt) {
-        await recordCapture(text, 'calendar', source, appt.id)
+        await recordCapture(text, 'calendar', source, appt.id, idempotencyKey, processingToken)
         const when = appt.all_day ? appt.start_local : appt.start_local.replace('T', ' ').slice(0, 16)
         return { routedTo: 'calendar', confirmation: `🗑️ *Appointment canceled:* ${appt.summary}\n${when}`, isCapture: false }
       }
@@ -102,6 +162,7 @@ export async function routeTextMessage(text: string, source = 'web'): Promise<Ro
     }
 
     if (cmd.kind === 'trade') {
+      await assertClaim()
       try {
         // Resolve "sold all" → current share count; resolve missing price → live quote.
         const shares = cmd.shares === 'all' ? await getOpenShares(cmd.ticker) : cmd.shares
@@ -116,8 +177,9 @@ export async function routeTextMessage(text: string, source = 'web'): Promise<Ro
         if (price === null) {
           return { routedTo: 'calendar', confirmation: `⚠️ Couldn't get a price for ${cmd.ticker}. Add one: "${cmd.side === 'buy' ? 'bought' : 'sold'} ${cmd.shares} ${cmd.ticker} @ <price>".`, isCapture: false }
         }
+        await assertClaim()
         const res = await applyTrade({ ticker: cmd.ticker, side: cmd.side, shares, price, note: 'via telegram' })
-        await recordCapture(text, 'calendar', source, res.holding.id)
+        await recordCapture(text, 'calendar', source, res.holding.id, idempotencyKey, processingToken)
         const verb = cmd.side === 'buy' ? '🟢 *Bought*' : '🔴 *Sold*'
         const tail = res.closed ? '\n_position closed_' : `\n_now ${res.netShares} sh @ avg ${res.holding.avg_cost != null ? '$' + Number(res.holding.avg_cost).toFixed(2) : '—'}_`
         return { routedTo: 'calendar', confirmation: `${verb} ${shares} ${cmd.ticker} @ $${price.toFixed(2)}${tail}`, isCapture: false }
@@ -127,8 +189,9 @@ export async function routeTextMessage(text: string, source = 'web'): Promise<Ro
     }
 
     if (cmd.kind === 'spend') {
+      await assertClaim()
       const row = await addSpend({ amount: cmd.amount, merchant: cmd.merchant ?? undefined, category: cmd.category, source: 'telegram' })
-      await recordCapture(text, 'note', source, row.id)
+      await recordCapture(text, 'note', source, row.id, idempotencyKey, processingToken)
       return { routedTo: 'note', confirmation: `💸 *Spent* $${cmd.amount.toFixed(2)}${cmd.merchant ? ` on ${cmd.merchant}` : ''} _(${cmd.category})_`, isCapture: false }
     }
   }
@@ -136,9 +199,10 @@ export async function routeTextMessage(text: string, source = 'web'): Promise<Ro
   // 1. Task check-off (regex; cheap & specific).
   const det = detectCompletionIntent(text)
   if (det.isCompletion) {
+    await assertClaim()
     const { matched } = await completeTaskByQuery(det.query)
     if (matched) {
-      await recordCapture(text, 'task_done', source, matched.id)
+      await recordCapture(text, 'task_done', source, matched.id, idempotencyKey, processingToken)
       return { routedTo: 'task_done', confirmation: `✅ Checked off: *${matched.title}*`, isCapture: false }
     }
     // phrased like completion but nothing matched → fall through so it's still captured
@@ -150,8 +214,9 @@ export async function routeTextMessage(text: string, source = 'web'): Promise<Ro
   if (intent === 'calendar') {
     const event = await parseEventFromText(text)
     if (event) {
+      await assertClaim()
       const created = await createCalendarEvent(event)
-      await recordCapture(text, 'calendar', source)
+      await recordCapture(text, 'calendar', source, null, idempotencyKey, processingToken)
       const when = created.allDay ? created.start : created.start.replace('T', ' ').slice(0, 16)
       return { routedTo: 'calendar', confirmation: `📅 *Event created:* ${created.summary}\n${when}\n${created.htmlLink}`, isCapture: false }
     }
@@ -159,15 +224,17 @@ export async function routeTextMessage(text: string, source = 'web'): Promise<Ro
   }
 
   if (intent === 'food') {
+    await assertClaim()
     const { meal, totals } = await logStandardFood(text)
-    await recordCapture(text, 'food', source)
+    await recordCapture(text, 'food', source, null, idempotencyKey, processingToken)
     return { routedTo: 'food', confirmation: foodConfirm(meal, totals), isCapture: false }
   }
 
   if (intent === 'recipe') {
     try {
+      await assertClaim()
       const r = await analyzeAndSaveRecipe(text)
-      await recordCapture(text, 'recipe', source, r.id)
+      await recordCapture(text, 'recipe', source, r.id, idempotencyKey, processingToken)
       return {
         routedTo: 'recipe',
         confirmation: `📖 *Recipe saved:* ${r.dish_name}\n${r.calories_kcal} kcal · ${r.protein_g}P / ${r.carbs_g}C / ${r.fat_g}F\nScore: *${r.food_score}* — ${r.score_tag}`,
@@ -180,11 +247,12 @@ export async function routeTextMessage(text: string, source = 'web'): Promise<Ro
   }
 
   // 3. Default: capture pipeline (classify → tasks OR daily_logs notes → embed → audit).
-  return captureText(text, source)
+  return captureText(text, source, idempotencyKey, processingToken)
 }
 
-async function captureText(text: string, source: string): Promise<RouteResult> {
+async function captureText(text: string, source: string, idempotencyKey: string | null, processingToken: string | null): Promise<RouteResult> {
   const db = getServiceClient()
+  await assertCaptureClaim(source, idempotencyKey, processingToken)
   const classification = await classifyCapture(text)
 
   const { data: capture } = await db.from('raw_captures').insert({
@@ -194,10 +262,12 @@ async function captureText(text: string, source: string): Promise<RouteResult> {
     classification,
     llm_source: 'anthropic',
     routed_to: classification.kind,
+    idempotency_key: idempotencyKey,
   }).select().single()
 
   let routedId: string | null = null
   if (['task', 'blocker', 'content', 'decision'].includes(classification.kind)) {
+    await assertCaptureClaim(source, idempotencyKey, processingToken)
     const { data: task } = await db.from('tasks').insert({
       user_id: USER_ID,
       title: classification.summary,
@@ -220,6 +290,7 @@ async function captureText(text: string, source: string): Promise<RouteResult> {
       : {}
     const capturesList = notes.captures ?? []
     capturesList.push({ id: capture?.id, text, ts: new Date().toISOString() })
+    await assertCaptureClaim(source, idempotencyKey, processingToken)
     await db.from('daily_logs').upsert({
       user_id: USER_ID,
       log_date: today,
@@ -232,6 +303,7 @@ async function captureText(text: string, source: string): Promise<RouteResult> {
     await db.from('raw_captures').update({ routed_id: routedId }).eq('id', capture.id)
   }
 
+  await assertCaptureClaim(source, idempotencyKey, processingToken)
   embedAndStore(text, 'capture', capture?.id ?? null)
 
   await db.from('audit_log').insert({

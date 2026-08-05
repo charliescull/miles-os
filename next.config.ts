@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 
 const nextConfig: NextConfig = {
+  // This checkout sits below another package-lock.json. Keep Next/Turbopack
+  // scoped to the app so builds do not walk an inaccessible parent directory.
+  turbopack: {
+    root: path.resolve(process.cwd()),
+  },
   // Expose the single-user identity vars to the client bundle so `lib/config.ts`
   // resolves to the SAME value on server and client. Without this, non-public
   // env vars are undefined in the browser → config falls back → hydration
