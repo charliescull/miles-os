@@ -33,8 +33,24 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
   const db = getServiceClient()
 
+  // Quick capture is intentionally forgiving: submitting the same open task
+  // twice should not create two identical rails in the command center.
+  const title = typeof body.title === 'string' ? body.title.trim() : ''
+  if (!title) return NextResponse.json({ error: 'Task title is required' }, { status: 400 })
+  const { data: existing } = await db
+    .from('tasks')
+    .select('*')
+    .eq('user_id', USER_ID)
+    .eq('status', 'open')
+    .ilike('title', title)
+    .limit(1)
+    .maybeSingle()
+
+  if (existing) return NextResponse.json({ ...existing, deduplicated: true }, { status: 200 })
+
   const { data, error } = await db.from('tasks').insert({
     ...body,
+    title,
     user_id: USER_ID,
     priority_score: body.priority_score ?? 0,
     status: 'open',
