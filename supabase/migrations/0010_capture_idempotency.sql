@@ -46,9 +46,16 @@ alter table appointments add column if not exists idempotency_key text;
 create unique index if not exists appointments_user_idempotency_idx
   on appointments(user_id, idempotency_key);
 
-alter table recipes add column if not exists idempotency_key text;
-create unique index if not exists recipes_user_idempotency_idx
-  on recipes(user_id, idempotency_key);
+-- Recipes may be provisioned separately from the core migration chain. Keep
+-- this migration additive in environments where that optional table is absent.
+do $$
+begin
+  if to_regclass('public.recipes') is not null then
+    execute 'alter table public.recipes add column if not exists idempotency_key text';
+    execute 'create unique index if not exists recipes_user_idempotency_idx
+      on public.recipes(user_id, idempotency_key)';
+  end if;
+end $$;
 
 -- Claim creation and lease reclamation must happen in one database transaction.
 -- The caller must only execute side effects when claimed=true. The row lock makes
