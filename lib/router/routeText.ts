@@ -29,6 +29,8 @@ export interface RouteResult {
   confirmation: string
   /** true when it went through the capture pipeline (Telegram shows the urgency keyboard then). */
   isCapture: boolean
+  /** Present when an idempotency key prevented new work from being performed. */
+  idempotency?: 'processed' | 'in_progress'
 }
 
 const CAPTURE_KINDS = ['task', 'blocker', 'content', 'decision', 'note', 'habit'] as const
@@ -39,14 +41,36 @@ async function assertCaptureClaim(source: string, idempotencyKey: string | null,
   if (!idempotencyKey) return
   const { data, error } = await getServiceClient()
     .from('capture_requests')
-    .select('status')
+    .update({ updated_at: new Date().toISOString() })
     .eq('user_id', USER_ID)
     .eq('source', source)
     .eq('idempotency_key', idempotencyKey)
+    .eq('status', 'processing')
     .eq('processing_token', processingToken)
+    .select('id')
     .maybeSingle()
   if (error) throw error
-  if (data?.status !== 'processing') throw new Error('Capture claim lost; retry with the same idempotency key')
+  if (!data) throw new Error('Capture claim lost; retry with the same idempotency key')
+}
+
+async function updateCaptureClaim(
+  source: string,
+  idempotencyKey: string,
+  processingToken: string,
+  values: Record<string, string | null>,
+) {
+  const { data, error } = await getServiceClient()
+    .from('capture_requests')
+    .update(values)
+    .eq('user_id', USER_ID)
+    .eq('source', source)
+    .eq('idempotency_key', idempotencyKey)
+    .eq('status', 'processing')
+    .eq('processing_token', processingToken)
+    .select('id')
+    .maybeSingle()
+  if (error) throw error
+  if (!data) throw new Error('Capture claim lost; retry with the same idempotency key')
 }
 
 async function recordCapture(text: string, routedTo: string, source: string, routedId: string | null = null, idempotencyKey: string | null = null, processingToken: string | null = null) {
@@ -90,19 +114,47 @@ export async function routeTextMessage(text: string, source = 'web', idempotency
     })
     if (error) throw error
     const claim = Array.isArray(data) ? data[0] : data
-    if (!claim?.claimed) return { routedTo: 'note', confirmation: 'Already processed or in progress.', isCapture: false }
+    if (!claim?.claimed) {
+      return {
+        routedTo: 'note',
+        confirmation: claim?.status === 'completed' ? 'Already processed.' : 'Still processing; retry shortly.',
+        isCapture: false,
+        idempotency: claim?.status === 'completed' ? 'processed' : 'in_progress',
+      }
+    }
   }
+  let heartbeatError: Error | null = null
   const heartbeat = idempotencyKey ? setInterval(() => {
-    void getServiceClient().from('capture_requests').update({ updated_at: new Date().toISOString() })
-      .eq('user_id', USER_ID).eq('source', source).eq('idempotency_key', idempotencyKey).eq('processing_token', processingToken)
+    void assertCaptureClaim(source, idempotencyKey, processingToken).catch((error: unknown) => {
+      heartbeatError = error instanceof Error ? error : new Error('Capture heartbeat failed')
+    })
   }, 30_000) : null
   try {
     const result = await routeTextMessageOnce(text, source, idempotencyKey, processingToken)
+    if (heartbeatError) throw heartbeatError
     await assertCaptureClaim(source, idempotencyKey, processingToken)
-    if (idempotencyKey) await getServiceClient().from('capture_requests').update({ status: 'completed', completed_at: new Date().toISOString(), updated_at: new Date().toISOString(), last_error: null }).eq('user_id', USER_ID).eq('source', source).eq('idempotency_key', idempotencyKey).eq('processing_token', processingToken)
+    if (idempotencyKey && processingToken) {
+      await updateCaptureClaim(source, idempotencyKey, processingToken, {
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        last_error: null,
+      })
+    }
     return result
   } catch (error) {
-    if (idempotencyKey) await getServiceClient().from('capture_requests').update({ status: 'failed', updated_at: new Date().toISOString(), last_error: error instanceof Error ? error.message.slice(0, 500) : 'Capture failed' }).eq('user_id', USER_ID).eq('source', source).eq('idempotency_key', idempotencyKey).eq('processing_token', processingToken)
+    if (idempotencyKey && processingToken) {
+      try {
+        await updateCaptureClaim(source, idempotencyKey, processingToken, {
+          status: 'failed',
+          updated_at: new Date().toISOString(),
+          last_error: error instanceof Error ? error.message.slice(0, 500) : 'Capture failed',
+        })
+      } catch (finalizationError) {
+        console.error('Capture failure state update failed:', finalizationError)
+        throw new Error('Capture failed and its retry state could not be persisted', { cause: finalizationError })
+      }
+    }
     throw error
   } finally {
     if (heartbeat) clearInterval(heartbeat)

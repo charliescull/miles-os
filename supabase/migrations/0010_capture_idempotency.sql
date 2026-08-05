@@ -49,10 +49,12 @@ set search_path = public
 as $$
 declare
   existing capture_requests%rowtype;
+  inserted boolean := false;
 begin
   insert into capture_requests (user_id, source, idempotency_key, request_hash, processing_token, status)
   values (p_user_id, p_source, p_idempotency_key, p_request_hash, p_processing_token, 'processing')
-  on conflict (user_id, source, idempotency_key) do nothing;
+  on conflict (user_id, source, idempotency_key) do nothing
+  returning true into inserted;
 
   select * into existing
     from capture_requests
@@ -67,7 +69,8 @@ begin
     raise exception 'Idempotency key was reused for different content';
   end if;
 
-  if existing.status = 'failed'
+  if inserted
+     or existing.status = 'failed'
      or (existing.status = 'processing'
          and existing.updated_at < now() - make_interval(secs => p_lease_seconds)) then
     update capture_requests

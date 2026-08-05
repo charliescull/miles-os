@@ -25,6 +25,11 @@ begin
     raise exception 'first claim did not win';
   end if;
 
+  if (select status from capture_requests
+      where user_id = test_user and source = test_source and idempotency_key = test_key) <> 'processing' then
+    raise exception 'first claim did not create a processing lease';
+  end if;
+
   select claimed into duplicate_claim
     from claim_capture_request(test_user, test_source, test_key, 'hash-a', retry_token, 900);
   if duplicate_claim is distinct from false then
@@ -58,6 +63,15 @@ begin
   get diagnostics stale_update_count = row_count;
   if stale_update_count <> 0 then
     raise exception 'replaced worker could still finalize the request';
+  end if;
+
+  update capture_requests
+     set status = 'completed', completed_at = now()
+   where user_id = test_user and source = test_source and idempotency_key = test_key
+     and status = 'processing' and processing_token = first_token;
+  get diagnostics stale_update_count = row_count;
+  if stale_update_count <> 1 then
+    raise exception 'current worker could not finalize its own request';
   end if;
 
   begin

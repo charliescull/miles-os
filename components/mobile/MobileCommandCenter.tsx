@@ -91,6 +91,8 @@ export default function MobileCommandCenter() {
         body: JSON.stringify({ text: item.text, idempotency_key: item.id }),
       })
       if (!response.ok) throw new Error(`Upload failed (${response.status})`)
+      const payload = await response.json().catch(() => ({})) as { state?: string; message?: string }
+      if (payload.state === 'in_progress') throw new Error('Capture is still processing')
       update({ ...item, status: 'processed', error: undefined, nextAttemptAt: undefined })
     } catch (error) {
       const attempts = item.attempts + 1

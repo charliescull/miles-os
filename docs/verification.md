@@ -4,6 +4,15 @@ This evidence covers the mobile quick-capture/idempotency slice. It deliberately
 separates checks run in this checkout from checks that require the deployed
 Supabase project.
 
+## Implementer correction
+
+The initial claim function incorrectly returned `claimed = false` for a newly
+inserted row because it treated the fresh `processing` lease as an existing
+active request. The function now tracks whether the insert won and returns
+`claimed = true` for that first request. `/api/quick` also reports explicit
+`processed` versus `in_progress` states; the mobile queue retries the latter
+instead of marking it complete.
+
 ## Checks run in this worktree
 
 - `npx eslint app/api/quick/route.ts app/m/page.tsx components/mobile/MobileCommandCenter.tsx lib/router/routeText.ts next.config.ts` — passed.
@@ -51,3 +60,17 @@ cookies, tokens, or request contents:
 
 Until these database and deployment checks are completed, acceptance remains
 `FIX_REQUIRED` for release even though the local static checks pass.
+
+## Follow-up hardening in this checkout
+
+- Claim ownership checks now renew the lease with a conditional token-matched
+  update, so a replaced worker observes claim loss through a write fence.
+- Heartbeat failures are retained and checked before completion.
+- Completion and failure transitions require the active processing token and
+  verify that exactly one ledger row was updated; a failed transition is no
+  longer silently ignored.
+- `/api/quick` preserves `201` for a completed first submission, `200` for a
+  completed replay, `202` for an in-progress replay, and `409` for hash reuse.
+- `node --experimental-strip-types --test scripts/quick-capture-response.test.mjs`
+  passes all three response-state tests.
+- Focused ESLint, TypeScript, and `git diff --check` pass after this pass.
