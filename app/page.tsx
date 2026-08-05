@@ -13,8 +13,9 @@ export default function HomePage() {
   return (
     <Shell>
       <BootGate>
+        {/* Mobile is schedule-only: everything but the calendar is lg-and-up. */}
         <div
-          className="flex flex-col lg:grid lg:h-[calc(100vh-40px)]"
+          className="flex flex-col h-[calc(100vh-40px)] lg:grid"
           style={{
             gridTemplateColumns: 'minmax(280px, 300px) 1fr minmax(280px, 300px)',
             gap: '1px',
@@ -22,22 +23,26 @@ export default function HomePage() {
           }}
         >
           {/* Left column — operator + system vitals */}
-          <div className="flex flex-col overflow-y-auto bg-black" style={{ gap: '1px' }}>
+          <div className="hidden lg:flex flex-col overflow-y-auto bg-black" style={{ gap: '1px' }}>
             <OperatorCard />
             <SystemCard />
           </div>
 
           {/* Centre column — the living organ, HUD furniture beneath */}
-          <div className="flex flex-col overflow-y-auto bg-black" style={{ gap: '1px' }}>
-            <HomeBrain className="flex-none h-[28vh] min-h-[220px]" />
-            <HatchStrip height={6} />
-            <SessionCard />
-            <HabitsCard />
-            <CalendarCard />
+          <div className="flex flex-1 min-h-0 lg:flex-none flex-col overflow-y-auto bg-black" style={{ gap: '1px' }}>
+            <HomeBrain className="hidden lg:block flex-none h-[28vh] min-h-[220px]" />
+            <div className="hidden lg:block">
+              <HatchStrip height={6} />
+            </div>
+            <div className="hidden lg:contents">
+              <SessionCard />
+              <HabitsCard />
+            </div>
+            <CalendarCard className="flex-1 min-h-0 lg:flex-none" />
           </div>
 
           {/* Right column — fuel */}
-          <div className="flex flex-col overflow-y-auto bg-black">
+          <div className="hidden lg:flex flex-col overflow-y-auto bg-black">
             <NutritionCard />
           </div>
         </div>

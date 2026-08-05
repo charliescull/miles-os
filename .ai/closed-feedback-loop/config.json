@@ -1,0 +1,35 @@
+{
+  "name": "closed-feedback-loop",
+  "displayName": "Closed Feedback Loop",
+  "defaultPlanner": "auto",
+  "defaultImplementer": "auto",
+  "defaultReviewer": "auto",
+  "defaultLearner": "auto",
+  "providerOrder": {
+    "planner": ["claude", "codex"],
+    "implementer": ["codex", "claude"],
+    "reviewer": ["claude", "codex"],
+    "learner": ["claude", "codex"]
+  },
+  "memoryDirectory": ".ai/closed-feedback-loop/memory",
+  "maxLessonsInPrompt": 8,
+  "maxIterations": 3,
+  "operatingPrinciples": [
+    "Optimize for outcome quality, not adherence to the initial plan.",
+    "Treat plans, task order, and model assignments as hypotheses that agents may improve.",
+    "Use the controller for durable state and evidence; do not use it to micromanage reasoning.",
+    "Allow exploration, alternative designs, broad refactors, and deliberate reversals when justified.",
+    "Ask the human only for decisions that materially change product intent, risk, or scope."
+  ],
+  "verificationCommands": [
+    "npm run lint",
+    "npm run build"
+  ],
+  "protectedPaths": [
+    ".env",
+    ".env.*",
+    "supabase/migrations",
+    "proxy.ts",
+    "lib/auth.ts"
+  ]
+}

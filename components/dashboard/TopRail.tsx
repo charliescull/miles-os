@@ -81,7 +81,7 @@ function Clock() {
 
   return (
     <div className="flex items-center gap-3">
-      <span className="card-label">{date}</span>
+      <span className="card-label hidden sm:inline">{date}</span>
       <span className="hud text-sm glow">{time}</span>
     </div>
   )
@@ -122,13 +122,13 @@ export default function TopRail() {
       sticky top-0 z-50
     ">
       {/* Brand */}
-      <div className="flex items-center gap-4 min-w-0">
-        <Link href="/" className="display text-[11px] text-white whitespace-nowrap glow">
-          MILES OS <span className="text-[oklch(0.45_0_0)]">// V3.1</span>
+      <div className="flex items-center gap-2 lg:gap-4 min-w-0">
+        <Link href="/" className="display text-[11px] text-white whitespace-nowrap glow flex-shrink-0">
+          MILES OS <span className="hidden sm:inline text-[oklch(0.45_0_0)]">// V3.1</span>
         </Link>
 
-        {/* Nav tabs */}
-        <nav className="flex items-center gap-0.5">
+        {/* Nav tabs — scrollable rather than overflowing on narrow screens */}
+        <nav className="flex items-center gap-0.5 min-w-0 overflow-x-auto no-scrollbar">
           {NAV.map(({ label, href }) => {
             const active = pathname === href || (href !== '/' && pathname.startsWith(href))
             return (
@@ -136,7 +136,7 @@ export default function TopRail() {
                 key={href}
                 href={href}
                 className={`
-                  hud px-3 py-1 text-[11px] tracking-[0.18em]
+                  hud px-2 lg:px-3 py-1 text-[11px] tracking-[0.18em] whitespace-nowrap
                   transition-colors duration-150
                   ${active
                     ? 'bg-[oklch(0.85_0.13_222)] text-black glow-box-cyan'
@@ -165,7 +165,7 @@ export default function TopRail() {
         <button
           onClick={reboot}
           title="Replay boot sequence"
-          className="hud text-[10px] tracking-[0.18em] text-[oklch(0.45_0_0)] hover:text-[var(--jarvis-bright)] hover:glow-cyan transition-colors"
+          className="hidden sm:inline hud text-[10px] tracking-[0.18em] text-[oklch(0.45_0_0)] hover:text-[var(--jarvis-bright)] hover:glow-cyan transition-colors"
         >
           [ REBOOT ]
         </button>

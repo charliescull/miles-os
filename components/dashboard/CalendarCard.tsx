@@ -36,7 +36,7 @@ function fmtMonth(): string {
   return new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: config.timezone }).toUpperCase()
 }
 
-export default function CalendarCard() {
+export default function CalendarCard({ className = '' }: { className?: string }) {
   const [events, setEvents] = useState<CalEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedDate, setSelectedDate] = useState(localDateKey())
@@ -62,10 +62,11 @@ export default function CalendarCard() {
       label="CALENDAR"
       badge={<span className="card-label">{fmtMonth()}</span>}
       noPadding
-      className="min-h-0"
+      className={`min-h-0 ${className}`}
     >
+      <div className="flex flex-col h-full min-h-0">
       {/* 7-day strip */}
-      <div className="grid grid-cols-7 border-b border-[oklch(1_0_0/0.05)]">
+      <div className="grid grid-cols-7 flex-none border-b border-[oklch(1_0_0/0.05)]">
         {weekDays.map((key, i) => {
           const isToday = key === today
           const isSelected = key === selectedDate
@@ -94,8 +95,8 @@ export default function CalendarCard() {
         })}
       </div>
 
-      {/* Events for selected day */}
-      <div className="overflow-y-auto" style={{ maxHeight: '220px' }}>
+      {/* Events for selected day — fills the screen on mobile, capped on desktop */}
+      <div className="overflow-y-auto flex-1 min-h-0 lg:flex-none lg:max-h-[220px]">
         {loading ? (
           <div className="p-3 space-y-2 animate-pulse">
             {[1, 2, 3].map(i => <div key={i} className="h-10 bg-[oklch(0.15_0_0)] rounded" />)}
@@ -139,6 +140,7 @@ export default function CalendarCard() {
             </div>
           ))
         )}
+      </div>
       </div>
     </Panel>
   )

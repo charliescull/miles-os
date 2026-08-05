@@ -393,3 +393,9 @@ body::after {
   body::after { display: none; }
   body::before { background: radial-gradient(120% 85% at 50% -5%, oklch(0.5 0.12 232 / 0.08) 0%, transparent 55%); }
 }
+
+/* ------------------------------------------------------------
+   Scrollable-but-chromeless — used by the mobile nav rail
+   ------------------------------------------------------------ */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }

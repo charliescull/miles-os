@@ -52,3 +52,7 @@ next-env.d.ts
 /health-whoop.png
 
 .vercel
+
+# Closed Feedback Loop runtime artifacts
+/.ai/runs/
+/.ai/worktrees/
